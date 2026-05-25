@@ -21,6 +21,4 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-Console.WriteLine("[Web Project] Attempting to invoke the Hardware project...");
-
 app.Run();
