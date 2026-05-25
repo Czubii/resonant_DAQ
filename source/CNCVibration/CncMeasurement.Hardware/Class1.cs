@@ -6,8 +6,11 @@ using System.Threading.Tasks;
 
 namespace CncMeasurement.Hardware
 {
-    public class Class1
+    public class commsTest
     {
-
+        public static string TEST()
+        {
+            return "we can communicate!!!";
+        }
     }
 }
