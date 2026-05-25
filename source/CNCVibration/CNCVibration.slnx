@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="CncMeasurement.Core/CncMeasurement.Core.csproj" Id="b6d9f5fa-0390-45bb-a56d-de71be9f5c5e" />
+  <Project Path="CncMeasurement.Data/CncMeasurement.Data.csproj" Id="fa2aa9b7-52f8-4677-af04-2bbec6a84a37" />
+  <Project Path="CncMeasurement.Hardware/CncMeasurement.Hardware.csproj" Id="58df4a52-d158-4a40-b292-82060fa715fa" />
+  <Project Path="CncMeasurement.Processing/CncMeasurement.Processing.csproj" Id="9a0dd207-8ee8-4de7-b4ff-0b0b2e242495" />
+  <Project Path="CncMeasurement.Web/CncMeasurement.Web.csproj" Id="5217d775-2cc8-4214-8e2a-389d32e96136" />
+</Solution>

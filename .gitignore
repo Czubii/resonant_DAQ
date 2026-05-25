@@ -1,0 +1,56 @@
+############################
+# Visual Studio (C# backend)
+############################
+
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build output
+**/bin/
+**/obj/
+**/Debug/
+**/Release/
+**/x64/
+**/x86/
+
+# NuGet
+*.nuget.props
+*.nuget.targets
+packages/
+*.nupkg
+
+# EF Core / tooling
+Migrations/*Designer.cs
+
+# Logs / temp
+*.log
+
+############################
+# Web (VS Code frontend)
+############################
+
+node_modules/
+dist/
+dist-ssr/
+build/
+out/
+
+# env file
+.env
+.env.*
+!.env.example
+
+# npm/yarn/pnpm
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+############################
+# VS Code
+############################
+
+.vscode/
