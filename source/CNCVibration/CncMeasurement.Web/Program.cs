@@ -1,5 +1,16 @@
+using CncMeasurement.Data;
+using Microsoft.Extensions.DependencyInjection;
+
 
 var builder = WebApplication.CreateBuilder(args);
+var services = new ServiceCollection();
+string dbConnectionString = "Data Source = Measurements.db";
+
+// Add all the components
+services.AddSingleton<IDatabaseController>(provider => 
+new DatabaseController(dbConnectionString)
+);
+
 
 // Add services to the container.
 

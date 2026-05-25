@@ -1,13 +1,13 @@
+﻿using CncMeasurement.Hardware;
 using Microsoft.AspNetCore.Mvc;
-using CncMeasurement.Hardware;
 
 namespace CncMeasurement.Web.Controllers
 {
     [ApiController]
     [Route("[controller]")]
-    public class WeatherForecastController : ControllerBase
+    public class GetSummariesController : ControllerBase
     {
-        [HttpGet(Name = "GetWeatherForecast")]
+        [HttpGet(Name = "")]
         public string Get()
         {
             return commsTest.TEST();
