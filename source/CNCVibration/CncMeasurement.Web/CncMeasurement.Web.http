@@ -13,3 +13,8 @@ Accept: application/json
 
 GET {{CncMeasurement.Web_HostAddress}}/ListDevices/
 Accept: application/json
+
+###
+
+GET {{CncMeasurement.Web_HostAddress}}/RequestSingleMeasurement/
+Accept: application/json

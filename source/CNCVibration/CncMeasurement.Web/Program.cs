@@ -17,6 +17,7 @@ builder.Services.AddSingleton<IDatabaseController>(provider =>
 new DatabaseController(dbConnectionString)
 );
 builder.Services.AddSingleton<IDaqDiscovery>(provider => new DaqDiscovery());
+builder.Services.AddSingleton<IDaqMeasurement>(provider => new DaqMeasurement());
 
 var app = builder.Build();
 

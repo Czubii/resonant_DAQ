@@ -97,10 +97,39 @@ namespace CncMeasurement.Web.Controllers
     [Route("[controller]")]
     public class RequestSingleMeasurementController : ControllerBase
     {
-        [HttpGet(Name = "RequestSingleMeasurement")]
-        public string Get()
+        private readonly IDaqMeasurement _daqMeasurement;
+
+        // Dependency Injection pulls the service from your Program.cs registration
+        public RequestSingleMeasurementController(IDaqMeasurement daqMeasurement)
         {
-            return " no ";
+            _daqMeasurement = daqMeasurement;
+        }
+
+        [HttpGet(Name = "RequestSingleMeasurement")]
+        public async Task<IActionResult> Get()
+        {
+            var config = new MeasurementConfig() // TODO: Replace with parameters specified by user
+            {
+                SampleRate = 1000,
+                DurationSeconds = 1,
+                ChannelName = "cDAQ1Mod1/ai0"
+            };
+
+            try
+            {
+                double[] rawData = await _daqMeasurement.AcquireDataAsync(config);
+
+                return Ok(new
+                {
+                    Timestamp = DateTime.UtcNow,
+                    TotalSamples = rawData.Length,
+                    Data = rawData
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { Message = ex.Message });
+            }
         }
     }
 
