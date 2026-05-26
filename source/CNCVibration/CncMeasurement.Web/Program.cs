@@ -1,5 +1,6 @@
 using CncMeasurement.Data;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.AspNetCore.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
 string dbConnectionString = "Data Source = Measurements.db";
@@ -10,7 +11,7 @@ SQLitePCL.Batteries.Init();
 // Add services to the container.
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+//builder.Services.AddOpenApi();
 builder.Services.AddSingleton<IDatabaseController>(provider =>
 new DatabaseController(dbConnectionString)
 );
@@ -26,7 +27,7 @@ using (var scope = app.Services.CreateScope())
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    //app.MapOpenApi();
 }
 
 app.UseHttpsRedirection();
