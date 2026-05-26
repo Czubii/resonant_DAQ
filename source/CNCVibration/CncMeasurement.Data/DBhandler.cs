@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using CncMeasurement.Core.models;
 using Microsoft.Data.Sqlite;
-using System.Text.Json;
+using Newtonsoft.Json; // Swapped to Newtonsoft.Json
 
 namespace CncMeasurement.Data
 {
@@ -14,20 +14,23 @@ namespace CncMeasurement.Data
         DBinfo listCollections();
         void InitializeCollections();
         void ClearDatabase();
-        void AddMeasurementEntry(Measurement MeasuredData);
+        void AddMeasurementEntry(MeasurementMetadata MeasuredData);
 
-        Measurement GetMeasurementByID(int measurementID);
+        MeasurementMetadata GetMeasurementByID(int measurementID);
 
         List<BriefMeasurementInfo> GetMeasurementSummaries();
-        
+
     }
+
     public class DatabaseController : IDatabaseController
     {
         private readonly string _connectionString;
+
         public DatabaseController(string ConnectionString)
         {
             _connectionString = ConnectionString;
         }
+
         // make Csharp types into strings so they can be stored in the database
         private string MapCsharpTypeToSqlite(Type type)
         {
@@ -43,6 +46,7 @@ namespace CncMeasurement.Data
             // strings, DateTimes, Guids, etc., are usually stored as TEXT in SQLite
             return "TEXT";
         }
+
         public DBinfo listCollections()
         {
             //code to acces collections
@@ -59,9 +63,12 @@ namespace CncMeasurement.Data
                 var command = connection.CreateCommand();
                 command.CommandText = @"
                     CREATE TABLE IF NOT EXISTS Measurements (
-                        Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        
-                    )";
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Timestamp TEXT NOT NULL,
+                    Graphs TEXT,
+                    Description TEXT,
+                    Notes TEXT
+                 )";
                 command.ExecuteNonQuery();
             }
 
@@ -72,7 +79,7 @@ namespace CncMeasurement.Data
             throw new NotImplementedException();
         }
 
-        public void AddMeasurementEntry(Measurement measuredData)
+        public void AddMeasurementEntry(MeasurementMetadata measuredData)
         {
             using (var connection = new SqliteConnection(_connectionString))
             {
@@ -80,7 +87,7 @@ namespace CncMeasurement.Data
                 var command = connection.CreateCommand();
 
                 // 1. Get all public properties of the Measurement class
-                var properties = typeof(Measurement).GetProperties();
+                var properties = typeof(MeasurementMetadata).GetProperties();
 
                 var columnNames = new List<string>();
                 var parameterNames = new List<string>();
@@ -105,11 +112,11 @@ namespace CncMeasurement.Data
                     object dbValue;
 
                     // 3. Handle special cases based on property type
-                    if (prop.PropertyType == typeof(Graph[]))
+                    if (prop.PropertyType == typeof(GraphMetadata[]))
                     {
-                        // Serialize the graph array to JSON
+                        // Serialize the graph array to JSON using Newtonsoft
                         dbValue = rawValue != null
-                            ? JsonSerializer.Serialize((Graph[])rawValue)
+                            ? JsonConvert.SerializeObject((GraphMetadata[])rawValue)
                             : "[]"; // Default to empty JSON array if null
                     }
                     else if (prop.PropertyType == typeof(DateTime))
@@ -137,6 +144,7 @@ namespace CncMeasurement.Data
                 command.ExecuteNonQuery();
             }
         }
+
         public List<BriefMeasurementInfo> GetMeasurementSummaries()
         {
             var summaries = new List<BriefMeasurementInfo>();
@@ -173,7 +181,7 @@ namespace CncMeasurement.Data
             return summaries;
         }
 
-        public Measurement GetMeasurementByID(int measurementID)
+        public MeasurementMetadata GetMeasurementByID(int measurementID)
         {
             using (var connection = new SqliteConnection(_connectionString))
             {
@@ -189,8 +197,8 @@ namespace CncMeasurement.Data
                     // We use 'if' instead of 'while' because IDs are unique; there will only be one result.
                     if (reader.Read())
                     {
-                        var measurement = new Measurement();
-                        var properties = typeof(Measurement).GetProperties();
+                        var measurement = new MeasurementMetadata();
+                        var properties = typeof(MeasurementMetadata).GetProperties();
 
                         // Dynamically map the columns to the C# properties
                         foreach (var prop in properties)
@@ -207,9 +215,9 @@ namespace CncMeasurement.Data
 
                             if (reader.IsDBNull(ordinal))
                             {
-                                if (prop.PropertyType == typeof(Graph[]))
+                                if (prop.PropertyType == typeof(GraphMetadata[]))
                                 {
-                                    prop.SetValue(measurement, Array.Empty<Graph>());
+                                    prop.SetValue(measurement, Array.Empty<GraphMetadata>());
                                 }
                                 continue;
                             }
@@ -217,10 +225,11 @@ namespace CncMeasurement.Data
                             object dbValue = reader.GetValue(ordinal);
 
                             // Handle special type conversions
-                            if (prop.PropertyType == typeof(Graph[]))
+                            if (prop.PropertyType == typeof(GraphMetadata[]))
                             {
                                 string json = (string)dbValue;
-                                var graphs = JsonSerializer.Deserialize<Graph[]>(json);
+                                // Deserialize the JSON string back to an array using Newtonsoft
+                                var graphs = JsonConvert.DeserializeObject<GraphMetadata[]>(json);
                                 prop.SetValue(measurement, graphs);
                             }
                             else if (prop.PropertyType == typeof(DateTime))

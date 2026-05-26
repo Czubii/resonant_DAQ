@@ -8,16 +8,16 @@ namespace CncMeasurement.Core.models
         public string[] Collections;
     }
     // General measurement data
-    public class Measurement
+    public class MeasurementMetadata
     {
         public int ID { get; set; }
         public DateTime Timestamp { get; set; }
-        public Graph[] Graphs { get; set; }
+        public GraphMetadata[] Graphs { get; set; }
         public string Description { get; set; }
         public string Notes { get; set; }
     }
     // for storing the informations about a .TDMS graph
-    public class Graph
+    public class GraphMetadata
     {
 
         public string Description { get; set; }

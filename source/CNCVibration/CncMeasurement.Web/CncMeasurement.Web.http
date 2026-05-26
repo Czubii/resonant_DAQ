@@ -2,5 +2,14 @@
 
 GET {{CncMeasurement.Web_HostAddress}}/weatherforecast/
 Accept: application/json
+###
+
+GET {{CncMeasurement.Web_HostAddress}}/MockEntry/
+Accept: application/json
+
+###
+
+GET {{CncMeasurement.Web_HostAddress}}/ListSummaries/
+Accept: application/json
 
 ###
