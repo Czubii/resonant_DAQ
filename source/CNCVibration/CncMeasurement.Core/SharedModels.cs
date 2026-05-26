@@ -39,4 +39,14 @@ namespace CncMeasurement.Core.models
         public double DurationSeconds { get; set; } = 2.0;
         public int SpindleRpm { get; set; }
     }
+
+    /// <summary>
+    /// Basic device information that allow for channel selection
+    /// </summary>
+    public class DeviceDescription
+    {
+        public string DeviceName { get; set; } = string.Empty;
+        public string ProductType { get; set; } = string.Empty;
+        public string SerialNumber { get; set; } = string.Empty;
+    }
 }
