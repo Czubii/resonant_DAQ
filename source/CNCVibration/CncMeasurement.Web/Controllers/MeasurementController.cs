@@ -103,4 +103,29 @@ namespace CncMeasurement.Web.Controllers
             return " no ";
         }
     }
+
+    [ApiController]
+    [Route("[controller]")]
+    public class ListDevicesController : ControllerBase
+    {
+        private readonly IDaqDiscovery _DaqDiscovery;
+        public ListDevicesController(IDaqDiscovery daqDiscovery)
+        {
+            _DaqDiscovery = daqDiscovery;
+        }
+        [HttpGet(Name = "list devices")]
+        public string Get()
+        {
+            string response = string.Empty;
+
+            List<DeviceDescription> devices = _DaqDiscovery.GetAvailableDevices();
+             
+            foreach (DeviceDescription device in devices)
+            {
+                response = response + $"{device.DeviceName}, {device.ProductType} ,SN: {device.SerialNumber}, \n";
+            }
+            return response;
+
+        }
+    }
 }
