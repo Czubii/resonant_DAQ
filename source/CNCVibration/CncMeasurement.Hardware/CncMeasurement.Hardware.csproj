@@ -94,6 +94,16 @@
     <Compile Include="DaqRecorder.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
+
+
+  <ItemGroup>
+    <Reference Include="NationalInstruments.DAQmx">
+      <HintPath>$(NationalInstrumentsDotNetCurrentAssembliesDir)\NationalInstruments.DAQmx.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+  </ItemGroup>
+
+
   <ItemGroup>
     <ProjectReference Include="..\CncMeasurement.Core\CncMeasurement.Core.csproj">
       <Project>{b6d9f5fa-0390-45bb-a56d-de71be9f5c5e}</Project>
