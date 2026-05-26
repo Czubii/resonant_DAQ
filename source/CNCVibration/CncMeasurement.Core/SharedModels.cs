@@ -31,4 +31,12 @@ namespace CncMeasurement.Core.models
         public DateTime Timestamp { get; set; }
         public string Description { get; set; }
     }
+
+    public class MeasurementConfig
+    {
+        public string ChannelName { get; set; } = "cDAQ1Mod1/ai0";
+        public double SampleRate { get; set; } = 10240.0;
+        public double DurationSeconds { get; set; } = 2.0;
+        public int SpindleRpm { get; set; }
+    }
 }
