@@ -8,6 +8,9 @@
 *.userosscache
 *.sln.docstates
 
+# Databases 
+*.db
+
 # Build output
 **/bin/
 **/obj/
