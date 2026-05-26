@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Text.Json.Serialization;
 
 namespace CncMeasurement.Core.models
 {
@@ -39,6 +40,7 @@ namespace CncMeasurement.Core.models
         public double DurationSeconds { get; set; } = 2.0;
         public int SpindleRpm { get; set; }
     }
+
 
     /// <summary>
     /// Basic device information that allow for channel selection

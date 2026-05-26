@@ -1,6 +1,7 @@
 ﻿using CncMeasurement.Core.models;
 using CncMeasurement.Data;
 using CncMeasurement.Hardware;
+using CncMeasurement.Web.RequestPayloadSchemas;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CncMeasurement.Web.Controllers
@@ -92,18 +93,47 @@ namespace CncMeasurement.Web.Controllers
         }
 
     }
-
     [ApiController]
+    [Route("[controller]")]
+    public class RequestMeasurement : ControllerBase
+    {
+        private readonly IDaqMeasurement _daqMeasurement;
+        private readonly IDatabaseController _dbController;
+
+        // Dependency Injection pulls the service from your Program.cs registry
+        public RequestSingleMeasurementController(IDaqMeasurement daqMeasurement,IDatabaseController dbController)
+        {
+            _daqMeasurement = daqMeasurement;
+            _dbController = dbController;
+        }
+
+        [HttpPost("Name = Request measurement")]
+        public async Task<IActionResult> Post([FromBody] MeasurementRequest Payload) {
+
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+            switch (Payload.type)
+            {
+                case: 0
+                        // logic for handling single requests
+                        break;
+                case:1
+                        // handle multi measurement or whatever
+                        break;
+                default:
+                    return StatusCode(400, "Invalid measurement type.")
+                    break;
+            }
+        }
+    }
+
+   /* [ApiController]
     [Route("[controller]")]
     public class RequestSingleMeasurementController : ControllerBase
     {
-        private readonly IDaqMeasurement _daqMeasurement;
-
-        // Dependency Injection pulls the service from your Program.cs registration
-        public RequestSingleMeasurementController(IDaqMeasurement daqMeasurement)
-        {
-            _daqMeasurement = daqMeasurement;
-        }
+        
 
         [HttpGet(Name = "RequestSingleMeasurement")]
         public async Task<IActionResult> Get()
@@ -147,5 +177,5 @@ namespace CncMeasurement.Web.Controllers
         {
             return Ok(_DaqDiscovery.GetAvailableDevices());
         }
-    }
+    }*/
 }
