@@ -13,12 +13,15 @@ namespace CncMeasurement.Hardware
         /// The number of samples taken will be n=config.DurationSeconds*config.SampleRate
         /// </summary>
         /// <param name="config">Measurement configuration</param>
-        /// <returns></returns>
+        /// <returns>An array of raw measuremets</returns>
         public double[] CaptureBlock(MeasurementConfig config)
         {
             int totalSamples = (int)(config.SampleRate * config.DurationSeconds);
 
             //TODO: Finish implementation, taking into account a proper configuration for the sensor
+            double[] rawData = new double[totalSamples];
+
+            return rawData;
         }
     }
 }
