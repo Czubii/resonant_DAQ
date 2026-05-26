@@ -113,19 +113,10 @@ namespace CncMeasurement.Web.Controllers
         {
             _DaqDiscovery = daqDiscovery;
         }
-        [HttpGet(Name = "list devices")]
-        public string Get()
+        [HttpGet(Name = "ListDevices")]
+        public ActionResult<List<DeviceDescription>> Get()
         {
-            string response = string.Empty;
-
-            List<DeviceDescription> devices = _DaqDiscovery.GetAvailableDevices();
-             
-            foreach (DeviceDescription device in devices)
-            {
-                response = response + $"{device.DeviceName}, {device.ProductType} ,SN: {device.SerialNumber}, \n";
-            }
-            return response;
-
+            return Ok(_DaqDiscovery.GetAvailableDevices());
         }
     }
 }

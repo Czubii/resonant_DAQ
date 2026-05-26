@@ -10,3 +10,6 @@ GET {{CncMeasurement.Web_HostAddress}}/ListSummaries/
 Accept: application/json
 
 ###
+
+GET {{CncMeasurement.Web_HostAddress}}/ListDevices/
+Accept: application/json

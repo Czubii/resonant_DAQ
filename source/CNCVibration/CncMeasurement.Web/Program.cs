@@ -11,14 +11,12 @@ SQLitePCL.Batteries.Init();
 
 // Add services to the container.
 builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-//builder.Services.AddOpenApi();
+
+//Register services:
 builder.Services.AddSingleton<IDatabaseController>(provider =>
 new DatabaseController(dbConnectionString)
 );
-builder.Services.AddSingleton<IDaqDiscovery>(provider =>
-new DaqDiscovery()
-);
+builder.Services.AddSingleton<IDaqDiscovery>(provider => new DaqDiscovery());
 
 var app = builder.Build();
 
@@ -26,12 +24,6 @@ using (var scope = app.Services.CreateScope())
 {
     var dbController = scope.ServiceProvider.GetRequiredService<IDatabaseController>();
     dbController.InitializeCollections();
-}
-
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    //app.MapOpenApi();
 }
 
 app.UseHttpsRedirection();

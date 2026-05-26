@@ -12,9 +12,9 @@ namespace CncMeasurement.Hardware
     {
         List<DeviceDescription> GetAvailableDevices();
     }
-    public static class DaqDiscovery : IDaqDiscovery
+    public class DaqDiscovery : IDaqDiscovery
     {
-        public static List<DeviceDescription> GetAvailableDevices()
+        public List<DeviceDescription> GetAvailableDevices()
         {
             var devices = new List<DeviceDescription>();
 
