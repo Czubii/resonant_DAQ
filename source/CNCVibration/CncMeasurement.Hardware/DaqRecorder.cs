@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using CncMeasurement.Core.models;
+using NationalInstruments.DAQmx;
 
 namespace CncMeasurement.Hardware
 {
