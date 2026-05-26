@@ -35,9 +35,9 @@ namespace CncMeasurement.Core.models
 
     public class MeasurementConfig
     {
-        public string ChannelName { get; set; } = "cDAQ1Mod1/ai0";
-        public double SampleRate { get; set; } = 10240.0;
-        public double DurationSeconds { get; set; } = 2.0;
+        public string ChannelName { get; set; } //= "cDAQ1Mod1/ai0";
+        public double SampleRate { get; set; } //= 10240.0;
+        public double DurationSeconds { get; set; } //= 2.0;
         public int SpindleRpm { get; set; }
     }
 
@@ -46,8 +46,8 @@ namespace CncMeasurement.Core.models
     /// </summary>
     public class DeviceDescription
     {
-        public string DeviceName { get; set; } = string.Empty;
-        public string ProductType { get; set; } = string.Empty;
-        public string SerialNumber { get; set; } = string.Empty;
+        public string DeviceName { get; set; }
+        public string ProductType { get; set; }
+        public string SerialNumber { get; set; }
     }
 }
