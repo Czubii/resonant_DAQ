@@ -101,32 +101,13 @@ namespace CncMeasurement.Web.Controllers
         private readonly IDatabaseController _dbController;
 
         // Dependency Injection pulls the service from your Program.cs registry
-        public RequestSingleMeasurementController(IDaqMeasurement daqMeasurement,IDatabaseController dbController)
-        {
-            _daqMeasurement = daqMeasurement;
-            _dbController = dbController;
-        }
+        
 
-        [HttpPost("Name = Request measurement")]
+        /*[HttpPost("Name = Request measurement")]
         public async Task<IActionResult> Post([FromBody] MeasurementRequest Payload) {
 
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-            switch (Payload.type)
-            {
-                case: 0
-                        // logic for handling single requests
-                        break;
-                case:1
-                        // handle multi measurement or whatever
-                        break;
-                default:
-                    return StatusCode(400, "Invalid measurement type.")
-                    break;
-            }
-        }
+            
+        }*/
     }
 
    /* [ApiController]
