@@ -16,11 +16,9 @@ namespace CncMeasurement.Hardware.Acquisition
     public sealed class NIDataAcquisitionService : IDataAcquisitionService
     {
         /// <summary>
-        /// Captures a number of samples froms specified DAQ channel
-        /// The number of samples taken will be n=config.DurationSeconds*config.SampleRate
+        /// Continuously Captures samples froms specified DAQ channel
         /// </summary>
         /// <param name="config">Measurement configuration</param>
-        /// <returns>An array of raw measuremets</returns>
         public async IAsyncEnumerable<SampleChunk> AcquireDataAsync(AcquisitionConfig config, [EnumeratorCancellation] CancellationToken ct = default)
         {
             using var daqTask = CreateTask(config);
@@ -28,6 +26,9 @@ namespace CncMeasurement.Hardware.Acquisition
             var reader = new AnalogSingleChannelReader(daqTask.Stream);
 
             ConfigureStream(daqTask, config);
+
+            // Verify that everything configured properly before starting hardware
+            daqTask.Control(TaskAction.Verify);
 
             daqTask.Start();
 
@@ -38,11 +39,10 @@ namespace CncMeasurement.Hardware.Acquisition
                 while (!ct.IsCancellationRequested)
                 {
                     double[] samples = reader.ReadMultiSample(config.ChunkSize); // Yes, there is no better way
-                    var numSamples = samples.Length;
 
-                    yield return new SampleChunk(samples, numSamples, sampleIdx);
+                    yield return new SampleChunk(samples, samples.Length, sampleIdx);
 
-                    sampleIdx += numSamples;
+                    sampleIdx += config.ChunkSize;
                 }
             }
             finally
@@ -79,8 +79,6 @@ namespace CncMeasurement.Hardware.Acquisition
                 config.ChunkSize // in case of continuous acquisition this will act as buffer segmentation size
             );
 
-            // Verify that everything configured properly before starting hardware
-            daqTask.Control(TaskAction.Verify);
 
             return daqTask;
         }

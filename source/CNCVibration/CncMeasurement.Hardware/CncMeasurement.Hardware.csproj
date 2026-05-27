@@ -15,16 +15,18 @@
     <ProjectReference Include="..\CncMeasurement.Core\CncMeasurement.Core.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Reference Include="NationalInstruments.DAQmx">
-      <HintPath>..\..\lib\ni\NationalInstruments.DAQmx.dll</HintPath>
-      <Private>true</Private>
-    </Reference>
+	<ItemGroup>
+		<Reference Include="NationalInstruments.DAQmx">
+			<HintPath>..\..\lib\ni\NationalInstruments.DAQmx.dll</HintPath>
+		</Reference>
 
-    <Reference Include="NationalInstruments.Common">
-      <HintPath>..\..\lib\ni\NationalInstruments.Common.dll</HintPath>
-      <Private>true</Private>
-    </Reference>
-  </ItemGroup>
+		<Reference Include="NationalInstruments.Common">
+			<HintPath>..\..\lib\ni\NationalInstruments.Common.dll</HintPath>
+		</Reference>
+
+		<Reference Include="NationalInstruments.Tdms">
+			<HintPath>..\..\lib\ni\\NationalInstruments.Tdms.dll</HintPath>
+		</Reference>
+	</ItemGroup>
 
 </Project>
