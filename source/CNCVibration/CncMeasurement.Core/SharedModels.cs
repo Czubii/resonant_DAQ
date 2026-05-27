@@ -41,7 +41,6 @@ namespace CncMeasurement.Core.models
         public int SpindleRpm { get; set; }
     }
 
-
     /// <summary>
     /// Basic device information that allow for channel selection
     /// </summary>
