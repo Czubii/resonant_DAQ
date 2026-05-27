@@ -96,9 +96,7 @@ namespace CncMeasurement.Web.Controllers
     [ApiController]
     [Route("[controller]")]
     public class RequestMeasurement : ControllerBase
-    {
-        private readonly IDaqMeasurement _daqMeasurement;
-        private readonly IDatabaseController _dbController;
+    { 
 
         // Dependency Injection pulls the service from your Program.cs registry
         
