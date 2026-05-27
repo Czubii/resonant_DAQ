@@ -25,6 +25,8 @@
 packages/
 *.nupkg
 
+source/lib/ni/*.dll
+
 # EF Core / tooling
 Migrations/*Designer.cs
 
