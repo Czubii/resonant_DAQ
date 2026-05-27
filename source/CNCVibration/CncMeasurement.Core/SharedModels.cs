@@ -33,14 +33,6 @@ namespace CncMeasurement.Core.models
         public string Description { get; set; }
     }
 
-    public class MeasurementConfig
-    {
-        public string ChannelName { get; set; } //= "cDAQ1Mod1/ai0";
-        public float SampleRate { get; set; } //= 10240.0;
-        public float DurationSeconds { get; set; } //= 2.0;
-        public int SpindleRpm { get; set; }
-    }
-
     /// <summary>
     /// Basic device information that allow for channel selection
     /// </summary>
