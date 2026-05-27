@@ -57,8 +57,8 @@ namespace CncMeasurement.Hardware.Acquisition
             NationalInstruments.DAQmx.Task daqTask = new NationalInstruments.DAQmx.Task();
 
             // Create the channel for vibration/acceleration measurement
-            daqTask.AIChannels.CreateAccelerometerChannel( 
-                config.ChannelName,
+            daqTask.AIChannels.CreateAccelerometerChannel(
+                "EXAMPLE CHANNEL NAME TO BE CHANGED", // TODO
                 "", // Name to assign to channel for now empty but we may add something here later TODO
                 AITerminalConfiguration.Differential,
                 -50.0, // Minimum value expected in g
@@ -82,6 +82,7 @@ namespace CncMeasurement.Hardware.Acquisition
 
             return daqTask;
         }
+
 
         private static void ConfigureStream(NationalInstruments.DAQmx.Task daqTask, AcquisitionConfig config)
         {

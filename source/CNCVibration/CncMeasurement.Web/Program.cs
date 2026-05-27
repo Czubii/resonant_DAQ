@@ -1,8 +1,9 @@
 using CncMeasurement.Data;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.AspNetCore.OpenApi;
 using CncMeasurement.Hardware;
+using CncMeasurement.Hardware.Acquisition;
 using CncMeasurement.Machine;
+using Microsoft.AspNetCore.OpenApi;
+using Microsoft.Extensions.DependencyInjection;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -14,7 +15,7 @@ SQLitePCL.Batteries.Init();
 // Add services to the container.
 builder.Services.AddControllers();
 
-DaqMeasurement MeasurementProvider = new DaqMeasurement();
+
 DaqDiscovery DiscoveryProvider = new DaqDiscovery();
 DatabaseController DatabaseProvider = new DatabaseController(dbConnectionString);
 MachineController MachineProvider = new MachineController();
@@ -23,7 +24,7 @@ MachineController MachineProvider = new MachineController();
 //Register services:
 builder.Services.AddSingleton<IDatabaseController>(DatabaseProvider);
 builder.Services.AddSingleton<IDaqDiscovery>(DiscoveryProvider);
-builder.Services.AddSingleton<IDaqMeasurement>(MeasurementProvider);
+builder.Services.AddSingleton<ImachineController>(MachineProvider);
 
 var app = builder.Build();
 
