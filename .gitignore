@@ -40,6 +40,7 @@ dist/
 dist-ssr/
 build/
 out/
+.vite
 
 # env file
 .env
