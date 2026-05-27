@@ -15,6 +15,7 @@ namespace CncMeasurement.Data
         void InitializeCollections();
         void ClearDatabase();
         void AddMeasurementEntry(MeasurementMetadata MeasuredData);
+
         MeasurementMetadata GetMeasurementByID(int measurementID);
 
         List<BriefMeasurementInfo> GetMeasurementSummaries();

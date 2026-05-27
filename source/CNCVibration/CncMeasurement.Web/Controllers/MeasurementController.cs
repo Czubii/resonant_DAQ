@@ -1,7 +1,6 @@
 ﻿using CncMeasurement.Core.models;
 using CncMeasurement.Data;
 using CncMeasurement.Hardware;
-using CncMeasurement.Web.RequestPayloadSchemas;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CncMeasurement.Web.Controllers
@@ -93,89 +92,15 @@ namespace CncMeasurement.Web.Controllers
         }
 
     }
+
     [ApiController]
-    [Route("[controller]")]
-    public class RequestMeasurement : ControllerBase
-    {
-        private readonly IDaqMeasurement _daqMeasurement;
-        private readonly IDatabaseController _dbController;
-
-        // Dependency Injection pulls the service from your Program.cs registry
-        public RequestSingleMeasurementController(IDaqMeasurement daqMeasurement,IDatabaseController dbController)
-        {
-            _daqMeasurement = daqMeasurement;
-            _dbController = dbController;
-        }
-
-        [HttpPost("Name = Request measurement")]
-        public async Task<IActionResult> Post([FromBody] MeasurementRequest Payload) {
-
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-            switch (Payload.type)
-            {
-                case: 0
-                        // logic for handling single requests
-                        break;
-                case:1
-                        // handle multi measurement or whatever
-                        break;
-                default:
-                    return StatusCode(400, "Invalid measurement type.")
-                    break;
-            }
-        }
-    }
-
-   /* [ApiController]
     [Route("[controller]")]
     public class RequestSingleMeasurementController : ControllerBase
     {
-        
-
         [HttpGet(Name = "RequestSingleMeasurement")]
-        public async Task<IActionResult> Get()
+        public string Get()
         {
-            var config = new MeasurementConfig() // TODO: Replace with parameters specified by user
-            {
-                SampleRate = 1000,
-                DurationSeconds = 1,
-                ChannelName = "cDAQ1Mod1/ai0"
-            };
-
-            try
-            {
-                double[] rawData = await _daqMeasurement.AcquireDataAsync(config);
-
-                return Ok(new
-                {
-                    Timestamp = DateTime.UtcNow,
-                    TotalSamples = rawData.Length,
-                    Data = rawData
-                });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { Message = ex.Message });
-            }
+            return " no ";
         }
     }
-
-    [ApiController]
-    [Route("[controller]")]
-    public class ListDevicesController : ControllerBase
-    {
-        private readonly IDaqDiscovery _DaqDiscovery;
-        public ListDevicesController(IDaqDiscovery daqDiscovery)
-        {
-            _DaqDiscovery = daqDiscovery;
-        }
-        [HttpGet(Name = "ListDevices")]
-        public ActionResult<List<DeviceDescription>> Get()
-        {
-            return Ok(_DaqDiscovery.GetAvailableDevices());
-        }
-    }*/
 }
