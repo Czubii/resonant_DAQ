@@ -19,7 +19,7 @@ namespace CncMeasurement.MockHardware
         private CancellationTokenSource _cts;
 
         private double _time;
-        public Task StartAsync(AcquisitionConfig config, [EnumeratorCancellation] CancellationToken ct = default)
+        public Task Start(AcquisitionConfig config, [EnumeratorCancellation] CancellationToken ct = default)
         {
 
             if (_acquisitionTask != null) throw new Exception("Acquisition Already Running");
@@ -39,6 +39,8 @@ namespace CncMeasurement.MockHardware
         {
             long sampleIdx = 0;
             int delayMs = (int)(1000.0 * config.ChunkSize / config.SampleRate);
+            var startTimeUtc = DateTime.UtcNow;
+
             try
             {
                 while (!ct.IsCancellationRequested)
@@ -48,7 +50,8 @@ namespace CncMeasurement.MockHardware
                     int channels = samples.GetLength(0);
                     int count = samples.GetLength(1);
 
-                    _channel.Writer.TryWrite(new SampleChunk(samples, channels, count, sampleIdx));
+                    var timestamp = startTimeUtc.AddSeconds((double)sampleIdx / config.SampleRate);
+                    _channel.Writer.TryWrite(new SampleChunk(sampleIdx, channels, count, timestamp, samples));
 
                     sampleIdx += count;
 
@@ -123,6 +126,12 @@ namespace CncMeasurement.MockHardware
             _time += count * dt;
 
             return samples;
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            await StopAsync();
+            _cts.Dispose();
         }
     }
 }

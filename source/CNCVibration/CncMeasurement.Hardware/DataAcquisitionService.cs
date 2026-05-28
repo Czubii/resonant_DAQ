@@ -29,14 +29,14 @@ namespace CncMeasurement.Hardware.Acquisition
         private AnalogMultiChannelReader _reader;
         private Task _acquisitionTask;
         private CancellationTokenSource _cts;
-        public Task StartAsync(AcquisitionConfig config, [EnumeratorCancellation] CancellationToken ct = default)
+        public Task Start(AcquisitionConfig config, [EnumeratorCancellation] CancellationToken ct = default)
         {
 
             if (_acquisitionTask != null) throw new Exception("Acquisition Already Running");
 
             _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
-            _channel = Channel.CreateUnbounded<SampleChunk>();
+            _channel = Channel.CreateUnbounded<SampleChunk>(); //TODO maybe change to bounded
             _daqTask = CreateTask(config);
 
             _reader = new AnalogMultiChannelReader(_daqTask.Stream);
@@ -53,7 +53,6 @@ namespace CncMeasurement.Hardware.Acquisition
             _daqTask.Control(TaskAction.Verify);
 
             _daqTask.Start();
-
             _acquisitionTask = Task.Run(() => AcquisitionLoop(config, _cts.Token));
 
             return Task.CompletedTask;
@@ -62,7 +61,7 @@ namespace CncMeasurement.Hardware.Acquisition
         private async Task AcquisitionLoop(AcquisitionConfig config, CancellationToken ct = default)
         {
             long sampleIdx = 0;
-
+            var startTimeUtc = DateTime.UtcNow;
             try
             {
                 while (!ct.IsCancellationRequested)
@@ -72,7 +71,8 @@ namespace CncMeasurement.Hardware.Acquisition
                     int channels = samples.GetLength(0);
                     int count = samples.GetLength(1);
 
-                    _channel.Writer.TryWrite(new SampleChunk(samples, channels, count, sampleIdx));
+                    var timestamp = startTimeUtc.AddSeconds((double)sampleIdx / config.SampleRate);
+                    _channel.Writer.TryWrite(new SampleChunk(sampleIdx, channels, count, timestamp, samples));
 
                     sampleIdx += count;
                 }
@@ -164,6 +164,12 @@ namespace CncMeasurement.Hardware.Acquisition
             daqTask.Stream.ReadOverwriteMode = ReadOverwriteMode.DoNotOverwriteUnreadSamples;
 
             daqTask.Stream.Timeout = Timeout.Infinite;
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            await StopAsync();
+            _cts.Dispose();
         }
     }
 }
