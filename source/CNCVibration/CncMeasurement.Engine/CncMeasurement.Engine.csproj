@@ -10,6 +10,10 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+	  <PackageReference Include="Microsoft.AspNet.SignalR.Core" Version="2.4.3" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<ProjectReference Include="..\CncMeasure.Machine\CncMeasurement.Machine.csproj" />
 		<ProjectReference Include="..\CncMeasurement.Core\CncMeasurement.Core.csproj" />
 		<ProjectReference Include="..\CncMeasurement.Data\CncMeasurement.Data.csproj" />
