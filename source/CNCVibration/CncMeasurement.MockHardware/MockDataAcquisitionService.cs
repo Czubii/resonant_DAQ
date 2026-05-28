@@ -19,7 +19,7 @@ namespace CncMeasurement.MockHardware
         private CancellationTokenSource _cts;
 
         private double _time;
-        public Task StartAsync(AcquisitionConfig config, [EnumeratorCancellation] CancellationToken ct = default)
+        public Task Start(AcquisitionConfig config, [EnumeratorCancellation] CancellationToken ct = default)
         {
 
             if (_acquisitionTask != null) throw new Exception("Acquisition Already Running");
@@ -126,6 +126,12 @@ namespace CncMeasurement.MockHardware
             _time += count * dt;
 
             return samples;
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            await StopAsync();
+            _cts.Dispose();
         }
     }
 }

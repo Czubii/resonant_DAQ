@@ -19,7 +19,7 @@ namespace TestRunner
         static async Task Main(string[] args)
         {
             TestDiscovery();
-            var service = new CncMeasurement.MockHardware.MockDataAcquisitionService();
+            var service = new CncMeasurement.Hardware.Acquisition.NIDataAcquisitionService();
             await TestAcquisition(service);
         }
         static void TestDiscovery()
