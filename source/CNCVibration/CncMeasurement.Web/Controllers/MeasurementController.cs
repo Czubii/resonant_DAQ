@@ -1,6 +1,7 @@
 ﻿using CncMeasurement.Core.models;
 using CncMeasurement.Data;
 using CncMeasurement.Hardware;
+using CncMeasurement.Hardware.Acquisition;
 using CncMeasurement.Web.RequestPayloadSchemas;
 using Microsoft.AspNetCore.Mvc;
 
@@ -93,11 +94,24 @@ namespace CncMeasurement.Web.Controllers
         }
 
     }
+
+    /// <summary>
+    /// for testing: returns a sample JSON for a request
+    /// </summary>
     [ApiController]
     [Route("[controller]")]
-    public class RequestMeasurement : ControllerBase
+    public class GetSampleRequestController : ControllerBase
     { 
+        public string Get()
+        {
+            ExperimentRequest ex = new ExperimentRequest();
 
+            ex.Description = "Example description";
+            ex.MachineConfiguration = new MachineConfig();
+            ex.MachineConfiguration.Y = 25;
+            ex.Channels.Add(new AcquisitionConfig());
+            return Newtonsoft.Json.JsonConvert.SerializeObject(ex);
+        }
         // Dependency Injection pulls the service from your Program.cs registry
         
 

@@ -42,4 +42,18 @@ namespace CncMeasurement.Core.models
         public string ProductType { get; set; }
         public string SerialNumber { get; set; }
     }
+
+    public class MachineConfig
+    {
+        public int Y { get; set; }
+    }
+    public class ExperimentSetup
+    {
+        public string Name {  get; set; }
+        public string Description { get; set; }
+        public MachineConfig MachineConfig { get; set; }
+
+        // SENSOR CONFIG
+        
+    }
 }
