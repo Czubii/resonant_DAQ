@@ -61,7 +61,7 @@ namespace CncMeasurement.Hardware.Acquisition
         private async Task AcquisitionLoop(AcquisitionConfig config, CancellationToken ct = default)
         {
             long sampleIdx = 0;
-
+            var startTimeUtc = DateTime.UtcNow;
             try
             {
                 while (!ct.IsCancellationRequested)
@@ -71,7 +71,8 @@ namespace CncMeasurement.Hardware.Acquisition
                     int channels = samples.GetLength(0);
                     int count = samples.GetLength(1);
 
-                    _channel.Writer.TryWrite(new SampleChunk(samples, channels, count, sampleIdx));
+                    var timestamp = startTimeUtc.AddSeconds((double)sampleIdx / config.SampleRate);
+                    _channel.Writer.TryWrite(new SampleChunk(sampleIdx, channels, count, timestamp, samples));
 
                     sampleIdx += count;
                 }

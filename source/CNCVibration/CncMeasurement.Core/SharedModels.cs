@@ -82,19 +82,26 @@ namespace CncMeasurement.Core.models
             public int ChunkSize { get; set; } // optimal value will depend on sample rate. For 10kS/s 4096 should be an okay starting value
         }
         public sealed record SampleChunk
-        {
-            public SampleChunk(double[,] samples, int numChannels, int numSamples, long sampleIndex)
-            {
-                Samples = samples;
-                NumChannels = numChannels;
-                NumSamples = numSamples;
-                SampleIndex = sampleIndex;
-            }
+        (
+            long SampleIndex,
+            int NumChannels,
+            int NumSamples,
+            DateTime TimeStamp,
+            double[,] Samples
+        );
+        public sealed record RmsFrame
+        (
+            long SampleIndex,
+            DateTime Timestamp,
+            RmsChannel[] Channels
+        );
+        public sealed record RmsChannel
+        (
+            int Channel,
+            double Value
+        );
 
-            public double[,] Samples { get; }
-            public int NumChannels { get; }
-            public int NumSamples { get; }
-            public long SampleIndex { get; }
-        }
-    }
+}
+
+
 
