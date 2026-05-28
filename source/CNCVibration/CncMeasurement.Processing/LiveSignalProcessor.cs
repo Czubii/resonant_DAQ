@@ -17,9 +17,9 @@ namespace CncMeasurement.Processing
         private Task? _processingTask;
 
         private Channel<int> _fftChannel = Channel.CreateUnbounded<int>();
-        private Channel<double> _rmsChannel = Channel.CreateUnbounded<double>();
+        private Channel<RmsFrame> _rmsChannel = Channel.CreateUnbounded<RmsFrame>();
         public ChannelReader<int> FFTReader => _fftChannel.Reader;
-        public ChannelReader<double> RMSReader => _rmsChannel.Reader;
+        public ChannelReader<RmsFrame> RMSReader => _rmsChannel.Reader;
 
         public Task Start(ChannelReader<SampleChunk> reader, CancellationToken ct = default)
         {
@@ -40,32 +40,41 @@ namespace CncMeasurement.Processing
                 await _processingTask;
         }
 
-        private async Task RunAsync(
-            ChannelReader<SampleChunk> reader,
-            CancellationToken ct)
+        private async Task RunAsync(ChannelReader<SampleChunk> reader, CancellationToken ct)
         {
-            await foreach (var chunk in reader.ReadAllAsync(ct))
-            {
-                int channels = chunk.NumChannels;
-                int samples = chunk.NumSamples;
-
-                for (int ch = 0; ch < channels; ch++)
+            try 
+            { 
+                await foreach (var chunk in reader.ReadAllAsync(ct))
                 {
-                    double sum = 0.0;
-
-                    for (int i = 0; i < samples; i++)
-                    {
-                        double x = chunk.Samples[ch, i];
-                        sum += x * x;
-                    }
-
-                    double rms = Math.Sqrt(sum / samples);
-
-                    _rmsChannel.Writer.TryWrite(rms);
+                    WriteRMS(chunk);
                 }
             }
+            catch (OperationCanceledException){}
         }
 
+        private void WriteRMS(SampleChunk chunk)
+        {
+            int channels = chunk.NumChannels;
+            int samples = chunk.NumSamples;
+
+            RmsChannel[] rmsChannel = new RmsChannel[channels];
+
+            for (int ch = 0; ch < channels; ch++)
+            {
+                double sum = 0.0;
+
+                for (int i = 0; i < samples; i++)
+                {
+                    double x = chunk.Samples[ch, i];
+                    sum += x * x;
+                }
+
+                double rms = Math.Sqrt(sum / samples);
+
+                rmsChannel[ch] = new RmsChannel(chunk.assignedChannelNames[ch], rms);
+            }
+            _rmsChannel.Writer.TryWrite(new RmsFrame(chunk.SampleIndex, chunk.TimeStamp, rmsChannel));
+        }
         public async ValueTask DisposeAsync()
         {
             await StopAsync();
