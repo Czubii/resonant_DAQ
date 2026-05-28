@@ -39,6 +39,7 @@ namespace TestRunner
 
         static async Task TestAcquisition(IDataAcquisitionService service)
         {
+            var service = new NIDataAcquisitionService();
 
             var config = new AcquisitionConfig
             {
@@ -75,11 +76,11 @@ namespace TestRunner
 
             try
             {
-                await service.StartAsync(config);
-                var readerTask = PrintChunksAsync(service.Reader, cts.Token);
+                await DAQService.Start(config);
+                var readerTask = PrintChunksAsync(DAQService.Reader, cts.Token);
                 await Task.Delay(1000);
 
-                await service.StopAsync();
+                await DAQService.StopAsync();
 
                 await readerTask;
             }

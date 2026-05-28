@@ -29,14 +29,14 @@ namespace CncMeasurement.Hardware.Acquisition
         private AnalogMultiChannelReader _reader;
         private Task _acquisitionTask;
         private CancellationTokenSource _cts;
-        public Task StartAsync(AcquisitionConfig config, [EnumeratorCancellation] CancellationToken ct = default)
+        public Task Start(AcquisitionConfig config, [EnumeratorCancellation] CancellationToken ct = default)
         {
 
             if (_acquisitionTask != null) throw new Exception("Acquisition Already Running");
 
             _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
-            _channel = Channel.CreateUnbounded<SampleChunk>();
+            _channel = Channel.CreateUnbounded<SampleChunk>(); //TODO maybe change to bounded
             _daqTask = CreateTask(config);
 
             _reader = new AnalogMultiChannelReader(_daqTask.Stream);
@@ -54,7 +54,7 @@ namespace CncMeasurement.Hardware.Acquisition
 
             _daqTask.Start();
 
-            _acquisitionTask = Task.Run(() => AcquisitionLoop(config, _cts.Token));
+            _acquisitionTask = AcquisitionLoop(config, _cts.Token);
 
             return Task.CompletedTask;
         }

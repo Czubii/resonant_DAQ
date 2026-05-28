@@ -10,7 +10,7 @@ namespace CncMeasurement.Core.Interfaces
 {
     public interface IDataAcquisitionService
     {
-        public Task StartAsync(AcquisitionConfig config, CancellationToken ct = default);
+        public Task Start(AcquisitionConfig config, CancellationToken ct = default);
         public Task StopAsync();
         public ChannelReader<SampleChunk> Reader { get; }
     }
