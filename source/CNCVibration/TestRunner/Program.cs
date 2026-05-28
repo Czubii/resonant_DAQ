@@ -1,4 +1,5 @@
 ﻿using CncMeasurement.Core;
+using CncMeasurement.Core.Interfaces;
 using CncMeasurement.Core.models;
 using CncMeasurement.Hardware;
 using CncMeasurement.Hardware.Acquisition;
@@ -17,8 +18,8 @@ namespace TestRunner
         static async Task Main(string[] args)
         {
             TestDiscovery();
-
-            await TestAcquisition();
+            var service = new CncMeasurement.MockHardware.MockDataAcquisitionService();
+            await TestAcquisition(service);
         }
         static void TestDiscovery()
         {
@@ -36,9 +37,8 @@ namespace TestRunner
             }
         }
 
-        static async Task TestAcquisition()
+        static async Task TestAcquisition(IDataAcquisitionService service)
         {
-            var service = new NIDataAcquisitionService();
 
             var config = new AcquisitionConfig
             {

@@ -79,7 +79,6 @@ namespace CncMeasurement.Core.models
             public string OutputTDMSPath;
             public List<ChannelConfig> ChannelConfigs { get; set; }
             public float SampleRate { get; set; } //= 10240.0;
-            public float DurationSeconds { get; set; } //= 2.0;
             public int ChunkSize { get; set; } // optimal value will depend on sample rate. For 10kS/s 4096 should be an okay starting value
         }
         public sealed record SampleChunk
