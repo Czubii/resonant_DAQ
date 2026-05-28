@@ -5,71 +5,143 @@ using System.Buffers;
 using System.Reflection.PortableExecutable;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using System.Threading.Channels;
 using System.Threading.Tasks;
+using Channel = System.Threading.Channels.Channel;
+using Task = System.Threading.Tasks.Task;
+using CncMeasurement.Core.Interfaces;
+using System.Security.Cryptography;
 
 namespace CncMeasurement.Hardware.Acquisition
 {
-    public interface IDataAcquisitionService
-    {
-        IAsyncEnumerable<SampleChunk> AcquireDataAsync(AcquisitionConfig config, [EnumeratorCancellation] CancellationToken ct = default);
-    }
+
     public sealed class NIDataAcquisitionService : IDataAcquisitionService
     {
         /// <summary>
         /// Continuously Captures samples froms specified DAQ channel
         /// </summary>
         /// <param name="config">Measurement configuration</param>
-        public async IAsyncEnumerable<SampleChunk> AcquireDataAsync(AcquisitionConfig config, [EnumeratorCancellation] CancellationToken ct = default)
+
+        private Channel<SampleChunk> _channel = Channel.CreateUnbounded<SampleChunk>();
+        public ChannelReader<SampleChunk> Reader => _channel.Reader;
+
+        private NationalInstruments.DAQmx.Task _daqTask;
+        private AnalogMultiChannelReader _reader;
+        private Task _acquisitionTask;
+        private CancellationTokenSource _cts;
+        public Task StartAsync(AcquisitionConfig config, [EnumeratorCancellation] CancellationToken ct = default)
         {
-            using var daqTask = CreateTask(config);
 
-            var reader = new AnalogSingleChannelReader(daqTask.Stream);
+            if (_acquisitionTask != null) throw new Exception("Acquisition Already Running");
 
-            ConfigureStream(daqTask, config);
+            _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+
+            _channel = Channel.CreateUnbounded<SampleChunk>();
+            _daqTask = CreateTask(config);
+
+            _reader = new AnalogMultiChannelReader(_daqTask.Stream);
+            ConfigureStream(_daqTask, config);
+
+            _daqTask.ConfigureLogging(
+                config.OutputTDMSPath,
+                TdmsLoggingOperation.CreateOrReplace,
+                LoggingMode.LogAndRead,
+                config.GroupName
+            );
 
             // Verify that everything configured properly before starting hardware
-            daqTask.Control(TaskAction.Verify);
+            _daqTask.Control(TaskAction.Verify);
 
-            daqTask.Start();
+            _daqTask.Start();
 
+            _acquisitionTask = Task.Run(() => AcquisitionLoop(config, _cts.Token));
+
+            return Task.CompletedTask;
+        }
+
+        private async Task AcquisitionLoop(AcquisitionConfig config, CancellationToken ct = default)
+        {
             long sampleIdx = 0;
 
             try
             {
                 while (!ct.IsCancellationRequested)
                 {
-                    double[] samples = reader.ReadMultiSample(config.ChunkSize); // Yes, there is no better way
+                    double[,] samples = _reader.ReadMultiSample(config.ChunkSize); // Yes, there is no better way
 
-                    yield return new SampleChunk(samples, samples.Length, sampleIdx);
+                    int channels = samples.GetLength(0);
+                    int count = samples.GetLength(1);
 
-                    sampleIdx += config.ChunkSize;
+                    _channel.Writer.TryWrite(new SampleChunk(samples, channels, count, sampleIdx));
+
+                    sampleIdx += count;
                 }
+            }
+            catch(Exception ex)
+            {
+                _channel.Writer.TryComplete(ex);
             }
             finally
             {
-                daqTask.Stop();
-                // No need to dispose of the task thanks to the using statement :0
+                _channel.Writer.TryComplete();
             }
+        }
+
+        public async Task StopAsync()
+        {
+            if (_acquisitionTask == null) return;
+
+            _cts?.Cancel();
+
+            try
+            {
+                await _acquisitionTask.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) { }
+
+            try
+            {
+                _daqTask?.Stop();
+            }
+            catch { }
+
+            try
+            {
+                _daqTask?.Dispose();
+            }
+            catch { }
+
+            _channel.Writer.TryComplete();
+
+            _acquisitionTask = null;
+            _daqTask = null;
+            _reader = null;
+
+            _cts?.Dispose();
+            _cts = null;
         }
 
         private static NationalInstruments.DAQmx.Task CreateTask(AcquisitionConfig config)
         {
             NationalInstruments.DAQmx.Task daqTask = new NationalInstruments.DAQmx.Task();
 
-            // Create the channel for vibration/acceleration measurement
-            daqTask.AIChannels.CreateAccelerometerChannel(
-                "EXAMPLE CHANNEL NAME TO BE CHANGED", // TODO
-                "", // Name to assign to channel for now empty but we may add something here later TODO
-                AITerminalConfiguration.Differential,
-                -50.0, // Minimum value expected in g
-                50.0,  // Maximum value expected in g
-                100.0, // Sensitivity in mV/g
-                AIAccelerometerSensitivityUnits.MillivoltsPerG,
-                AIExcitationSource.Internal,
-                2.0, // Excitation current (for our sensor it's between 2mA and 20mA)
-                AIAccelerationUnits.G
-            );
+            // Configure the channels for acceleration measurement:
 
+            foreach (var ch in config.ChannelConfigs)
+            {
+                daqTask.AIChannels.CreateAccelerometerChannel(
+                    ch.PhysicalChannelName, 
+                    ch.NameToAssignToChannel,
+                    AITerminalConfiguration.Pseudodifferential,
+                    ch.MinRange, // Minimum value expected in g
+                    ch.MaxRange,  // Maximum value expected in g
+                    ch.Sensitivity, // Sensitivity in mV/g
+                    AIAccelerometerSensitivityUnits.MillivoltsPerG,
+                    AIExcitationSource.Internal,
+                    0.002, // Excitation current (for our sensor it's between 2mA and 20mA)
+                    AIAccelerationUnits.G
+                );
+            }
 
             daqTask.Timing.ConfigureSampleClock(
                 "", // Use internal DAQ clock
