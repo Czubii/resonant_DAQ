@@ -1,12 +1,8 @@
-﻿namespace CncMeasurement.Machine
-{
-    public interface IMachineController
-    {
-        Task SetYPosition(double yPosition);
-        void RunSweep();
-        void RunContinous(int RPM, float DurationSeconds);
+﻿using CncMeasurement.Core.Interfaces;
 
-    }
+namespace CncMeasurement.Machine
+{
+    
     public class MachineController : IMachineController
     {
         public void RunContinous(int RPM, float DurationSeconds)
@@ -14,7 +10,7 @@
             throw new NotImplementedException();
         }
 
-        public void RunSweep()
+        public Task RunSweep()
         {
             throw new NotImplementedException();
         }

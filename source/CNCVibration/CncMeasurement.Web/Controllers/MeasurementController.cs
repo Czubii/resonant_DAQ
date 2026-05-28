@@ -1,4 +1,5 @@
 ﻿using CncMeasurement.Core.models;
+using CncMeasurement.Core.Interfaces;
 using CncMeasurement.Data;
 using CncMeasurement.Engine;
 using CncMeasurement.Hardware;

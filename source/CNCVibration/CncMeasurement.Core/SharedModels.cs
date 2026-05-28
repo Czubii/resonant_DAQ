@@ -3,6 +3,8 @@ using System.Text.Json.Serialization;
 
 namespace CncMeasurement.Core.models
 {
+    
+    
     // general information about the database collections
     public class DBinfo
     {
@@ -63,7 +65,7 @@ namespace CncMeasurement.Core.models
         public string Description { get; set; }
         public MachineConfig MachineConfiguration { get; set; }
 
-        public List<AcquisitionConfig> Channels { get; set; }
+        public AcquisitionConfig MeasurementConfig { get; set; }
     }
         public class ChannelConfig
         {

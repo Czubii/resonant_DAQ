@@ -4,22 +4,13 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using CncMeasurement.Core.models;
+using CncMeasurement.Core.Interfaces;
 using Microsoft.Data.Sqlite;
 using Newtonsoft.Json; // Swapped to Newtonsoft.Json
 
 namespace CncMeasurement.Data
 {
-    public interface IDatabaseController
-    {
-        DBinfo listCollections();
-        void InitializeCollections();
-        void ClearDatabase();
-        void AddMeasurementEntry(MeasurementMetadata MeasuredData);
-        MeasurementMetadata GetMeasurementByID(int measurementID);
-
-        List<BriefMeasurementInfo> GetMeasurementSummaries();
-
-    }
+    
 
     public class DatabaseController : IDatabaseController
     {

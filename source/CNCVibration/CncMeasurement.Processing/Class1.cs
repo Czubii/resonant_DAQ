@@ -3,14 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using CncMeasurement.Core.Interfaces;
 
 namespace CncMeasurement.Processing
 {
-    public interface IProcessing
-    {
-        public void ProcessSweep(string DataFilePath);
-        public void Process(string DataFilePath);
-    }
+    
     public class Processor : IProcessing
     {
         public void Process(string DataFilePath)

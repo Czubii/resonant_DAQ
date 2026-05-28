@@ -17,7 +17,7 @@ namespace CncMeasurement.Web.RequestPayloadSchemas
             Experiment.Name = Name;
             Experiment.Description = Description;
             Experiment.MachineConfig = MachineConfig;
-            Experiment.Channels = Channels;
+            Experiment.MeasurementConfig = Channels;
 
             return Experiment;
         }

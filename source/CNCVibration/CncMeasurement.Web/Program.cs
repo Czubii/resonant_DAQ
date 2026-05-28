@@ -1,13 +1,15 @@
+using CncMeasurement.Core.Interfaces;
 using CncMeasurement.Data;
 using CncMeasurement.Engine;
 using CncMeasurement.Hardware;
 using CncMeasurement.Hardware.Acquisition;
 using CncMeasurement.Machine;
 using CncMeasurement.Processing;
+using CncMeasurement.Web.Hubs;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
-using Microsoft.AspNetCore.Mvc;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -18,22 +20,25 @@ SQLitePCL.Batteries.Init();
 
 // Add services to the container.
 
+builder.Services.AddSingleton<IDaqDiscovery, DaqDiscovery>();
+builder.Services.AddSingleton<IMachineController, MachineController>();
+builder.Services.AddSingleton<IProcessing, Processor>();
+builder.Services.AddSingleton<IDataAcquisitionService, NIDataAcquisitionService>();
 
-// instantiate the singletons for all services
-DaqDiscovery DiscoveryProvider = new DaqDiscovery();
-DatabaseController DatabaseProvider = new DatabaseController(dbConnectionString);
-MachineController MachineProvider = new MachineController();
-Processor Processing = new Processor();
+// 2. Register the DatabaseController using a Factory pattern.
+// Because it needs a specific string (dbConnectionString), we tell the container exactly how to build it.
+builder.Services.AddSingleton<IDatabaseController>(serviceProvider =>
+{
+    return new DatabaseController(dbConnectionString);
+});
 
-Engine engine = new Engine(MachineProvider, DatabaseProvider, Processing);
+builder.Services.AddSingleton<IMeasurementBroadcaster, SignalRMeasurementBroadcaster>();
 
-//Register services:
-builder.Services.AddSingleton<IDatabaseController>(DatabaseProvider);
-builder.Services.AddSingleton<IDaqDiscovery>(DiscoveryProvider);
-builder.Services.AddSingleton<IMachineController>(MachineProvider);
-builder.Services.AddSingleton<IProcessing>(Processing);
 
-builder.Services.AddSingleton<IEngine>(engine);
+builder.Services.AddSingleton<IEngine, Engine>();
+
+
+builder.Services.AddSignalR();
 
 // Use newtonsoft for JSON serialization in HTTP requests
 builder.Services.AddControllersWithViews()
