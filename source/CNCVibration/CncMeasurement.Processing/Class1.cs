@@ -6,7 +6,21 @@ using System.Threading.Tasks;
 
 namespace CncMeasurement.Processing
 {
-    public class Class1
+    public interface IProcessing
     {
+        public void ProcessSweep(string DataFilePath);
+        public void Process(string DataFilePath);
+    }
+    public class Processor : IProcessing
+    {
+        public void Process(string DataFilePath)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void ProcessSweep(string DataFilePath)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
