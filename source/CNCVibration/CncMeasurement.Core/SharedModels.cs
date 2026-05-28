@@ -47,13 +47,11 @@ namespace CncMeasurement.Core.models
     {
         public int Y { get; set; }
     }
-    public class ExperimentSetup
+    public class ExperimentRequest
     {
-        public string Name {  get; set; }
+        public string Name { get; set; }
         public string Description { get; set; }
-        public MachineConfig MachineConfig { get; set; }
-
-        // SENSOR CONFIG
-        
+        public List<AcquisitionConfig> Channels { get; set; }
+        public MachineConfig MachineConfiguration { get; set; }
     }
 }
