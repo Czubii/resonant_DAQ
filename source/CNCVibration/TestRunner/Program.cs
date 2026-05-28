@@ -88,6 +88,7 @@ namespace TestRunner
             }
             finally
             {
+
                 Console.WriteLine("Acquisition stopped.");
             }
         }
