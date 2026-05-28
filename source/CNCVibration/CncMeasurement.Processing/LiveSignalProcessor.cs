@@ -6,16 +6,10 @@ using System.Text;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using MathNet.Numerics.Statistics;
+using CncMeasurement.Core.Interfaces;
 
 namespace CncMeasurement.Processing
 {
-    public interface ILiveSignalProcessor: IAsyncDisposable
-    {
-        public Task Start(ChannelReader<SampleChunk> sampleChunkReader, CancellationToken ct = default);
-        public Task StopAsync();
-        public ChannelReader<int> FFTReader { get; }
-        public ChannelReader<double> RMSReader { get; }
-    }
     public class LiveSignalProcessor : ILiveSignalProcessor
     {
         private readonly CancellationTokenSource _cts = new();
