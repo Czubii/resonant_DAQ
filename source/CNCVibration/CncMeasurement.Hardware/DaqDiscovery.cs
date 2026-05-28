@@ -30,6 +30,7 @@ namespace CncMeasurement.Hardware
                     var desc = new DeviceDescription
                     {
                         DeviceName = name,
+                        AIChannels = currentDevice.AIPhysicalChannels.ToList<string>(),
                         ProductType = currentDevice.ProductType,
                         SerialNumber = currentDevice.SerialNumber != 0
                             ? currentDevice.SerialNumber.ToString("X")

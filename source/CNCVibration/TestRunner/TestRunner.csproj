@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+
+    <TargetFramework>net8.0-windows</TargetFramework>
+
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CncMeasurement.Core\CncMeasurement.Core.csproj" />
+    <ProjectReference Include="..\CncMeasurement.Hardware\CncMeasurement.Hardware.csproj" />
+  </ItemGroup>
+
+</Project>
