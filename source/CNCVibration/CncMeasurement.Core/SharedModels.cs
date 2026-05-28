@@ -50,4 +50,37 @@ namespace CncMeasurement.Core.models
         public string ProductType { get; set; }
         public string SerialNumber { get; set; }
     }
+
+    public class ChannelConfig
+    {
+        public string PhysicalChannelName { get; set; } //= "cDAQ1Mod1/ai0";
+        public string NameToAssignToChannel { get; set; } // for example "Sensor Frame" or something idk
+        public float Sensitivity { get; set; }
+        public float MinRange { get; set; }
+        public float MaxRange { get; set; }
+    }
+    public class AcquisitionConfig
+    {
+        public string GroupName;
+        public string OutputTDMSPath;
+        public List<ChannelConfig> ChannelConfigs { get; set; }
+        public float SampleRate { get; set; } //= 10240.0;
+        public float DurationSeconds { get; set; } //= 2.0;
+        public int ChunkSize { get; set; } // optimal value will depend on sample rate. For 10kS/s 4096 should be an okay starting value
+    }
+    public sealed record SampleChunk
+    {
+        public SampleChunk(double[,] samples, int numChannels, int numSamples, long sampleIndex)
+        {
+            Samples = samples;
+            NumChannels = numChannels;
+            NumSamples = numSamples;
+            SampleIndex = sampleIndex;
+        }
+
+        public double[,] Samples { get; }
+        public int NumChannels { get; }
+        public int NumSamples { get; }
+        public long SampleIndex { get; }
+    }
 }
