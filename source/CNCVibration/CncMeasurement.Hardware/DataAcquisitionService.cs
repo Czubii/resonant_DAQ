@@ -165,5 +165,11 @@ namespace CncMeasurement.Hardware.Acquisition
 
             daqTask.Stream.Timeout = Timeout.Infinite;
         }
+
+        public async ValueTask DisposeAsync()
+        {
+            await StopAsync();
+            _cts.Dispose();
+        }
     }
 }

@@ -8,7 +8,7 @@ using CncMeasurement.Core.models;
 
 namespace CncMeasurement.Core.Interfaces
 {
-    public interface IDataAcquisitionService
+    public interface IDataAcquisitionService: IAsyncDisposable
     {
         public Task Start(AcquisitionConfig config, CancellationToken ct = default);
         public Task StopAsync();
