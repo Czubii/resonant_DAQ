@@ -63,5 +63,5 @@ app.UseHttpsRedirection();
 app.UseAuthorization();
 
 app.MapControllers();
-
+app.MapHub<LiveMeasurementHub>("/hubs/live-measurements");
 app.Run();

@@ -8,7 +8,7 @@ namespace CncMeasurement.Web.RequestPayloadSchemas
         public string Description { get; set; }
         public MachineConfig MachineConfig { get; set; }
 
-        public List<AcquisitionConfig> Channels { get; set; }
+        public AcquisitionConfig MeasurementConfig { get; set; }
 
         public ExperimentSetup ToExperiment()
         {
@@ -16,8 +16,8 @@ namespace CncMeasurement.Web.RequestPayloadSchemas
             Experiment.ID = new Guid();
             Experiment.Name = Name;
             Experiment.Description = Description;
-            Experiment.MachineConfig = MachineConfig;
-            Experiment.MeasurementConfig = Channels;
+            Experiment.MachineConfiguration = MachineConfig;
+            Experiment.MeasurementConfig = MeasurementConfig;
 
             return Experiment;
         }

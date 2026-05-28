@@ -109,20 +109,37 @@ namespace CncMeasurement.Web.Controllers
             ExperimentRequest ex = new ExperimentRequest();
 
             ex.Description = "Example description";
-            ex.MachineConfiguration = new MachineConfig();
-            ex.MachineConfiguration.Y = 25;
-            ex.Channels.Add(new AcquisitionConfig());
+            ex.MachineConfig = new MachineConfig();
+            ex.MachineConfig.Y = 25;
+            ex.MeasurementConfig = new AcquisitionConfig
+            {
+                SampleRate = 10000,
+                ChunkSize = 1000,
+                GroupName = "test",
+                OutputTDMSPath = "tetstoutput.tdms",
+                ChannelConfigs = new List<ChannelConfig>
+            {
+                new ChannelConfig
+                {
+                    PhysicalChannelName = "cDAQ1Mod1/ai0",
+                    NameToAssignToChannel = "Accel X",
+                    MinRange = -50,
+                    MaxRange = 50,
+                    Sensitivity = 100,
+
+                },
+                new ChannelConfig
+                {
+                    PhysicalChannelName = "cDAQ1Mod1/ai1",
+                    NameToAssignToChannel = "Accel Y",
+                    MinRange = -50,
+                    MaxRange = 50,
+                    Sensitivity = 100,
+                }
+            }
+            };
             return Newtonsoft.Json.JsonConvert.SerializeObject(ex);
         }
-        // Dependency Injection pulls the service from your Program.cs registry
-        
-
-        /*[HttpPost("Name = Request measurement")]
-        public async Task<IActionResult> Post([FromBody] MeasurementRequest Payload) {
-
-            
-        }*/
-    }
 
     [ApiController]
     [Route("[controller]")]
@@ -144,6 +161,7 @@ namespace CncMeasurement.Web.Controllers
             {
                 return BadRequest("Incorrect request payload");
             }
+
             _experimentSetup = payload.ToExperiment();
             _engine.LoadExperiment(_experimentSetup);
            
