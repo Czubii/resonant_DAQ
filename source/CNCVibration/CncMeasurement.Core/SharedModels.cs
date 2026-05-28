@@ -39,6 +39,14 @@ namespace CncMeasurement.Core.models
     public class DeviceDescription
     {
         public string DeviceName { get; set; }
+        public List<string> AIChannels { get; set; } 
+        // This entry contains analog input channels of the device in the following form:
+        //  cDAQ1Mod1/ai0
+        //  cDAQ1Mod1/ai1
+        //  cDAQ1Mod1/ai2
+        //  cDAQ1Mod1/ai3
+        // If no analog input channels are present for the device this list will be just empty
+
         public string ProductType { get; set; }
         public string SerialNumber { get; set; }
     }
