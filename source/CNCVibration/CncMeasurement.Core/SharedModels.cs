@@ -88,6 +88,7 @@ namespace CncMeasurement.Core.models
         (
             long SampleIndex,
             int NumChannels,
+            string[] assignedChannelNames,
             int NumSamples,
             DateTime TimeStamp,
             double[,] Samples
@@ -100,7 +101,7 @@ namespace CncMeasurement.Core.models
         );
         public sealed record RmsChannel
         (
-            int Channel,
+            string AssignedChannelName,
             double Value
         );
 
