@@ -39,6 +39,14 @@ namespace CncMeasurement.Core.models
     public class DeviceDescription
     {
         public string DeviceName { get; set; }
+        public List<string> AIChannels { get; set; } 
+        // This entry contains analog input channels of the device in the following form:
+        //  cDAQ1Mod1/ai0
+        //  cDAQ1Mod1/ai1
+        //  cDAQ1Mod1/ai2
+        //  cDAQ1Mod1/ai3
+        // If no analog input channels are present for the device this list will be just empty
+
         public string ProductType { get; set; }
         public string SerialNumber { get; set; }
     }
@@ -69,5 +77,36 @@ namespace CncMeasurement.Core.models
 
         public List<AcquisitionConfig> Channels { get; set; }
 
+    public class ChannelConfig
+    {
+        public string PhysicalChannelName { get; set; } //= "cDAQ1Mod1/ai0";
+        public string NameToAssignToChannel { get; set; } // for example "Sensor Frame" or something idk
+        public float Sensitivity { get; set; }
+        public float MinRange { get; set; }
+        public float MaxRange { get; set; }
+    }
+    public class AcquisitionConfig
+    {
+        public string GroupName;
+        public string OutputTDMSPath;
+        public List<ChannelConfig> ChannelConfigs { get; set; }
+        public float SampleRate { get; set; } //= 10240.0;
+        public float DurationSeconds { get; set; } //= 2.0;
+        public int ChunkSize { get; set; } // optimal value will depend on sample rate. For 10kS/s 4096 should be an okay starting value
+    }
+    public sealed record SampleChunk
+    {
+        public SampleChunk(double[,] samples, int numChannels, int numSamples, long sampleIndex)
+        {
+            Samples = samples;
+            NumChannels = numChannels;
+            NumSamples = numSamples;
+            SampleIndex = sampleIndex;
+        }
+
+        public double[,] Samples { get; }
+        public int NumChannels { get; }
+        public int NumSamples { get; }
+        public long SampleIndex { get; }
     }
 }

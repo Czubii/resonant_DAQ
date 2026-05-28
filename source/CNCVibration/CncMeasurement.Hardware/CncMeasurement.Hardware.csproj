@@ -23,10 +23,6 @@
 		<Reference Include="NationalInstruments.Common">
 			<HintPath>..\..\lib\ni\NationalInstruments.Common.dll</HintPath>
 		</Reference>
-
-		<Reference Include="NationalInstruments.Tdms">
-			<HintPath>..\..\lib\ni\\NationalInstruments.Tdms.dll</HintPath>
-		</Reference>
 	</ItemGroup>
 
 </Project>
