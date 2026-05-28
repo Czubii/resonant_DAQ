@@ -12,7 +12,7 @@ namespace CncMeasurement.Processing
 {
     public class LiveSignalProcessor : ILiveSignalProcessor
     {
-        private readonly CancellationTokenSource _cts = new();
+        private CancellationTokenSource _cts = new();
 
         private Task? _processingTask;
 
@@ -25,9 +25,13 @@ namespace CncMeasurement.Processing
         {
             if (_processingTask != null) throw new InvalidOperationException("Already started.");
 
-            var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, _cts.Token);
+            _cts?.Dispose();
+            _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
-            _processingTask = RunAsync(reader, linked.Token);
+            _fftChannel = Channel.CreateUnbounded<int>();
+            _rmsChannel = Channel.CreateUnbounded<RmsFrame>();
+
+            _processingTask = RunAsync(reader, _cts.Token);
 
             return Task.CompletedTask;
         }
@@ -38,6 +42,8 @@ namespace CncMeasurement.Processing
 
             if (_processingTask != null)
                 await _processingTask;
+
+            _processingTask = null;
         }
 
         private async Task RunAsync(ChannelReader<SampleChunk> reader, CancellationToken ct)
@@ -50,6 +56,11 @@ namespace CncMeasurement.Processing
                 }
             }
             catch (OperationCanceledException){}
+            finally
+            {
+                _rmsChannel.Writer.TryComplete();
+                _fftChannel.Writer.TryComplete();
+            }
         }
 
         private void WriteRMS(SampleChunk chunk)
