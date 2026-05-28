@@ -64,7 +64,7 @@ namespace CncMeasurement.Core.models
         public MachineConfig MachineConfiguration { get; set; }
 
         public List<AcquisitionConfig> Channels { get; set; }
-
+    }
         public class ChannelConfig
         {
             public string PhysicalChannelName { get; set; } //= "cDAQ1Mod1/ai0";
@@ -98,4 +98,4 @@ namespace CncMeasurement.Core.models
             public long SampleIndex { get; }
         }
     }
-}
+
