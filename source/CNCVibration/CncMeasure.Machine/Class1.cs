@@ -2,7 +2,7 @@
 {
     public interface IMachineController
     {
-        void SetYPosition(double yPosition);
+        Task SetYPosition(double yPosition);
         void RunSweep();
         void RunContinous(int RPM, float DurationSeconds);
 
@@ -19,7 +19,7 @@
             throw new NotImplementedException();
         }
 
-        public void SetYPosition(double yPosition)
+        public Task SetYPosition(double yPosition)
         {
             throw new NotImplementedException();
         }

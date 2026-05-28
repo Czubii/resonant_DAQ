@@ -1,5 +1,6 @@
 ﻿using CncMeasurement.Core.models;
 using CncMeasurement.Data;
+using CncMeasurement.Engine;
 using CncMeasurement.Hardware;
 using CncMeasurement.Hardware.Acquisition;
 using CncMeasurement.Web.RequestPayloadSchemas;
@@ -122,53 +123,80 @@ namespace CncMeasurement.Web.Controllers
         }*/
     }
 
-   /* [ApiController]
+    [ApiController]
     [Route("[controller]")]
-    public class RequestSingleMeasurementController : ControllerBase
+    public class RequestExperimentController : ControllerBase
     {
-        
-
-        [HttpGet(Name = "RequestSingleMeasurement")]
-        public async Task<IActionResult> Get()
+        private readonly IEngine _engine;
+        private ExperimentSetup _experimentSetup;
+        public RequestExperimentController(IEngine engine)
         {
-            var config = new MeasurementConfig() // TODO: Replace with parameters specified by user
-            {
-                SampleRate = 1000,
-                DurationSeconds = 1,
-                ChannelName = "cDAQ1Mod1/ai0"
-            };
+            _engine = engine;
+        }
+        public IActionResult Post([FromBody] ExperimentRequest payload)
+        {
+            //check if all properties are not null
 
-            try
+            if(payload.GetType()
+                   .GetProperties()
+                   .Any(prop => prop.GetValue(payload) == null))
             {
-                double[] rawData = await _daqMeasurement.AcquireDataAsync(config);
-
-                return Ok(new
-                {
-                    Timestamp = DateTime.UtcNow,
-                    TotalSamples = rawData.Length,
-                    Data = rawData
-                });
+                return BadRequest("Incorrect request payload");
             }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { Message = ex.Message });
-            }
+            _experimentSetup = payload.ToExperiment();
+            _engine.LoadExperiment(_experimentSetup);
+           
+           return Ok($"Created experiment with ID {_experimentSetup.ID}"); 
         }
     }
 
-    [ApiController]
-    [Route("[controller]")]
-    public class ListDevicesController : ControllerBase
-    {
-        private readonly IDaqDiscovery _DaqDiscovery;
-        public ListDevicesController(IDaqDiscovery daqDiscovery)
-        {
-            _DaqDiscovery = daqDiscovery;
-        }
-        [HttpGet(Name = "ListDevices")]
-        public ActionResult<List<DeviceDescription>> Get()
-        {
-            return Ok(_DaqDiscovery.GetAvailableDevices());
-        }
-    }*/
+    /* [ApiController]
+     [Route("[controller]")]
+     public class RequestSingleMeasurementController : ControllerBase
+     {
+
+
+         [HttpGet(Name = "RequestSingleMeasurement")]
+         public async Task<IActionResult> Get()
+         {
+             var config = new MeasurementConfig() // TODO: Replace with parameters specified by user
+             {
+                 SampleRate = 1000,
+                 DurationSeconds = 1,
+                 ChannelName = "cDAQ1Mod1/ai0"
+             };
+
+             try
+             {
+                 double[] rawData = await _daqMeasurement.AcquireDataAsync(config);
+
+                 return Ok(new
+                 {
+                     Timestamp = DateTime.UtcNow,
+                     TotalSamples = rawData.Length,
+                     Data = rawData
+                 });
+             }
+             catch (Exception ex)
+             {
+                 return StatusCode(500, new { Message = ex.Message });
+             }
+         }
+     }
+
+     [ApiController]
+     [Route("[controller]")]
+     public class ListDevicesController : ControllerBase
+     {
+         private readonly IDaqDiscovery _DaqDiscovery;
+         public ListDevicesController(IDaqDiscovery daqDiscovery)
+         {
+             _DaqDiscovery = daqDiscovery;
+         }
+         [HttpGet(Name = "ListDevices")]
+         public ActionResult<List<DeviceDescription>> Get()
+         {
+             return Ok(_DaqDiscovery.GetAvailableDevices());
+         }
+     }*/
 }

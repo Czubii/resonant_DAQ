@@ -12,6 +12,7 @@ namespace CncMeasurement.Engine
     }
     public class Engine : IEngine
     {
+
         IMachineController _machineController;
         IDatabaseController _databaseController;
         IProcessing _processor;
@@ -36,10 +37,12 @@ namespace CncMeasurement.Engine
             throw new NotImplementedException();
         }
 
-        public void LoadExperiment(ExperimentSetup Setup)
+        public Task LoadExperiment(ExperimentSetup Setup)
         {
 
-            _machineController.SetYPosition(Setup.MachineConfig.Y);
+            _machineController.SetYPosition(Setup.MachineConfiguration.Y);
+
+            return Task.CompletedTask;
         }
     }
 }

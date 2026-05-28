@@ -6,6 +6,8 @@ using CncMeasurement.Machine;
 using CncMeasurement.Processing;
 using Microsoft.AspNetCore.OpenApi;
 using Microsoft.Extensions.DependencyInjection;
+using Newtonsoft.Json;
+using Microsoft.AspNetCore.Mvc;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,9 +17,9 @@ SQLitePCL.Batteries.Init();
 
 
 // Add services to the container.
-builder.Services.AddControllers();
 
 
+// instantiate the singletons for all services
 DaqDiscovery DiscoveryProvider = new DaqDiscovery();
 DatabaseController DatabaseProvider = new DatabaseController(dbConnectionString);
 MachineController MachineProvider = new MachineController();
@@ -33,6 +35,15 @@ builder.Services.AddSingleton<IProcessing>(Processing);
 
 builder.Services.AddSingleton<IEngine>(engine);
 
+// Use newtonsoft for JSON serialization in HTTP requests
+builder.Services.AddControllersWithViews()
+        .AddNewtonsoftJson(options =>
+        {
+            // Configure Newtonsoft.Json options here
+            options.SerializerSettings.ReferenceLoopHandling = ReferenceLoopHandling.Ignore;
+            options.SerializerSettings.NullValueHandling = NullValueHandling.Ignore;
+        });
+
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
@@ -40,6 +51,7 @@ using (var scope = app.Services.CreateScope())
     var dbController = scope.ServiceProvider.GetRequiredService<IDatabaseController>();
     dbController.InitializeCollections();
 }
+
 
 app.UseHttpsRedirection();
 

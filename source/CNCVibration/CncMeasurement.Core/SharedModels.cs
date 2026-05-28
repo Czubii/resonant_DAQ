@@ -47,11 +47,27 @@ namespace CncMeasurement.Core.models
     {
         public int Y { get; set; }
     }
-    public class ExperimentRequest
+     public class AcquisitionConfig
     {
-        public string Name { get; set; }
+        public int ChannleNumber { get; set; }
+        public string DeviceName { get; set; } //= "cDAQ1Mod1/ai0";
+        public float SampleRate { get; set; } //= 10240.0;
+        public float DurationSeconds { get; set; } //= 2.0;
+        public int ChunkSize { get; set; } // optimal value will depend on sample rate. For 10kS/s 4096 should be an okay starting value
+
+        public float Sensitivity { get; set; }
+
+        public float MinRange { get; set; }
+        public float MaxRange { get; set; }
+    }
+    public class ExperimentSetup
+    {
+        public Guid ID { get; set; }
+        public string Name {  get; set; }
         public string Description { get; set; }
-        public List<AcquisitionConfig> Channels { get; set; }
         public MachineConfig MachineConfiguration { get; set; }
+
+        public List<AcquisitionConfig> Channels { get; set; }
+
     }
 }
