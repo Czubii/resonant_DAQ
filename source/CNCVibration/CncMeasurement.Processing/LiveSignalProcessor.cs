@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using MathNet.Numerics.Statistics;
 
 namespace CncMeasurement.Processing
 {
@@ -13,7 +14,7 @@ namespace CncMeasurement.Processing
         public Task Start(ChannelReader<SampleChunk> sampleChunkReader, CancellationToken ct = default);
         public Task StopAsync();
         public ChannelReader<int> FFTReader { get; }
-        public ChannelReader<int> RMSReader { get; }
+        public ChannelReader<double> RMSReader { get; }
     }
     public class LiveSignalProcessor : ILiveSignalProcessor
     {
@@ -22,9 +23,9 @@ namespace CncMeasurement.Processing
         private Task? _processingTask;
 
         private Channel<int> _fftChannel = Channel.CreateUnbounded<int>();
-        private Channel<int> _rmsChannel = Channel.CreateUnbounded<int>();
+        private Channel<double> _rmsChannel = Channel.CreateUnbounded<double>();
         public ChannelReader<int> FFTReader => _fftChannel.Reader;
-        public ChannelReader<int> RMSReader => _rmsChannel.Reader;
+        public ChannelReader<double> RMSReader => _rmsChannel.Reader;
 
         public Task Start(ChannelReader<SampleChunk> reader, CancellationToken ct = default)
         {
@@ -51,7 +52,23 @@ namespace CncMeasurement.Processing
         {
             await foreach (var chunk in reader.ReadAllAsync(ct))
             {
-                Process(chunk);
+                int channels = chunk.NumChannels;
+                int samples = chunk.NumSamples;
+
+                for (int ch = 0; ch < channels; ch++)
+                {
+                    double sum = 0.0;
+
+                    for (int i = 0; i < samples; i++)
+                    {
+                        double x = chunk.Samples[ch, i];
+                        sum += x * x;
+                    }
+
+                    double rms = Math.Sqrt(sum / samples);
+
+                    _rmsChannel.Writer.TryWrite(rms);
+                }
             }
         }
 

@@ -53,8 +53,7 @@ namespace CncMeasurement.Hardware.Acquisition
             _daqTask.Control(TaskAction.Verify);
 
             _daqTask.Start();
-
-            _acquisitionTask = AcquisitionLoop(config, _cts.Token);
+            _acquisitionTask = Task.Run(() => AcquisitionLoop(config, _cts.Token));
 
             return Task.CompletedTask;
         }
