@@ -3,6 +3,7 @@ using CncMeasurement.Core.Interfaces;
 using CncMeasurement.Core.models;
 using CncMeasurement.Hardware;
 using CncMeasurement.Hardware.Acquisition;
+using CncMeasurement.Processing;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.Contracts;
@@ -39,6 +40,8 @@ namespace TestRunner
 
         static async Task TestAcquisition(IDataAcquisitionService service)
         {
+            var DAQService = new NIDataAcquisitionService();
+            var ProcessingService = new LiveSignalProcessor();
 
             var config = new AcquisitionConfig
             {
@@ -56,36 +59,44 @@ namespace TestRunner
                     MaxRange = 50,
                     Sensitivity = 100,
                  
-                },
-                new ChannelConfig
-                {
-                    PhysicalChannelName = "cDAQ1Mod1/ai1",
-                    NameToAssignToChannel = "Accel Y",
-                    MinRange = -50,
-                    MaxRange = 50,
-                    Sensitivity = 100,
                 }
             }
             };
 
             using var cts = new CancellationTokenSource();
-
-            // stop after 5 seconds (for testing)
-            cts.CancelAfter(TimeSpan.FromSeconds(5));
-
+            
             try
             {
-                await service.StartAsync(config);
-                var readerTask = PrintChunksAsync(service.Reader, cts.Token);
-                await Task.Delay(1000);
+                await DAQService.Start(config, cts.Token);
+                Console.WriteLine($"LOL");
+                await ProcessingService.Start(DAQService.Reader, cts.Token);
+                Console.WriteLine($"LOL");
 
-                await service.StopAsync();
+                var printerClosed = PrintDoubleAsync(ProcessingService.RMSReader, cts.Token);
+                Console.WriteLine($"Acquisition Started");
+                await Task.Delay(10000);
+                Console.WriteLine($"Acquisition Stopping");
+                var stopProcessing = ProcessingService.StopAsync();
+                var stopAcquisition = DAQService.StopAsync();
 
-                await readerTask;
+                await Task.WhenAll(stopAcquisition, stopProcessing, printerClosed);
+
             }
             catch (OperationCanceledException)
             {
                 Console.WriteLine("Acquisition stopped.");
+            }
+            finally
+            {
+
+                Console.WriteLine("Acquisition stopped.");
+            }
+        }
+        static async Task PrintDoubleAsync(ChannelReader<double> reader, CancellationToken ct)
+        {
+            await foreach (var value in reader.ReadAllAsync(ct))
+            {
+                Console.WriteLine($"{value}");
             }
         }
         static async Task PrintChunksAsync(ChannelReader<SampleChunk> reader, CancellationToken ct)
