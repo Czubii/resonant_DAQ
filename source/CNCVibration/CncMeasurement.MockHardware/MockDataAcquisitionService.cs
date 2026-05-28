@@ -1,20 +1,30 @@
-﻿using CncMeasurement.Core.models;
+﻿using CncMeasurement.Core.Interfaces;
+using CncMeasurement.Core.models;
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
+using System.Timers;
 
 namespace CncMeasurement.MockHardware
 {
-    public class MockDataAcquisitionService
+    /// <summary>
+    /// Used for generating some test data to test the processing and main pipelines. 
+    /// Doesn't generate the tdms output
+    /// </summary>
+    public class MockDataAcquisitionService: IDataAcquisitionService
     {
         private Channel<SampleChunk> _channel = Channel.CreateUnbounded<SampleChunk>();
         public ChannelReader<SampleChunk> Reader => _channel.Reader;
 
         private Task _acquisitionTask;
         private CancellationTokenSource _cts;
+
+        private double _time;
         public Task StartAsync(AcquisitionConfig config, [EnumeratorCancellation] CancellationToken ct = default)
         {
 
             if (_acquisitionTask != null) throw new Exception("Acquisition Already Running");
+
+            _time = 0.0;
 
             _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
 
@@ -28,12 +38,12 @@ namespace CncMeasurement.MockHardware
         private async Task AcquisitionLoop(AcquisitionConfig config, CancellationToken ct = default)
         {
             long sampleIdx = 0;
-
+            int delayMs = (int)(1000.0 * config.ChunkSize / config.SampleRate);
             try
             {
                 while (!ct.IsCancellationRequested)
                 {
-                    double[,] samples = _reader.ReadMultiSample(config.ChunkSize); // Yes, there is no better way
+                    double[,] samples = GenerateWaveform(config);
 
                     int channels = samples.GetLength(0);
                     int count = samples.GetLength(1);
@@ -41,6 +51,8 @@ namespace CncMeasurement.MockHardware
                     _channel.Writer.TryWrite(new SampleChunk(samples, channels, count, sampleIdx));
 
                     sampleIdx += count;
+
+                    await Task.Delay(delayMs, ct); // a simple delay should be enough for testing
                 }
             }
             catch (Exception ex)
@@ -74,38 +86,43 @@ namespace CncMeasurement.MockHardware
             _cts = null;
         }
 
-        private static NationalInstruments.DAQmx.Task CreateTask(AcquisitionConfig config)
+        private double[,] GenerateWaveform(AcquisitionConfig config)
         {
-            NationalInstruments.DAQmx.Task daqTask = new NationalInstruments.DAQmx.Task();
+            int channels = config.ChannelConfigs.Count;
+            int count = config.ChunkSize;
 
-            // Configure the channels for acceleration measurement:
+            double[,] samples = new double[channels, count];
 
-            foreach (var ch in config.ChannelConfigs)
+            double dt = 1.0 / config.SampleRate;
+
+            double baseFreq = 500.0;      // Hz
+            double amplitude = 1.0;
+            double noiseAmp = 0.02;
+
+            var rand = Random.Shared;
+
+            for (int i = 0; i < count; i++)
             {
-                daqTask.AIChannels.CreateAccelerometerChannel(
-                    ch.PhysicalChannelName,
-                    ch.NameToAssignToChannel,
-                    AITerminalConfiguration.Pseudodifferential,
-                    ch.MinRange, // Minimum value expected in g
-                    ch.MaxRange,  // Maximum value expected in g
-                    ch.Sensitivity, // Sensitivity in mV/g
-                    AIAccelerometerSensitivityUnits.MillivoltsPerG,
-                    AIExcitationSource.Internal,
-                    0.002, // Excitation current (for our sensor it's between 2mA and 20mA)
-                    AIAccelerationUnits.G
-                );
+                double t = _time + i * dt;
+
+                for (int ch = 0; ch < channels; ch++)
+                {
+                    // phase shift per channel
+                    double phase = ch * 0.5;
+
+                    double signal =
+                        amplitude * Math.Sin(2 * Math.PI * baseFreq * t + phase)
+                        + 0.5 * Math.Sin(2 * Math.PI * (baseFreq * 3) * t + phase);
+
+                    double noise = (rand.NextDouble() - 0.5) * 2.0 * noiseAmp;
+
+                    samples[ch, i] = signal + noise;
+                }
             }
 
-            daqTask.Timing.ConfigureSampleClock(
-                "", // Use internal DAQ clock
-                config.SampleRate,
-                SampleClockActiveEdge.Rising, // Sample on rising clock edge
-                SampleQuantityMode.ContinuousSamples,
-                config.ChunkSize // in case of continuous acquisition this will act as buffer segmentation size
-            );
+            _time += count * dt;
 
-
-            return daqTask;
+            return samples;
         }
     }
 }
