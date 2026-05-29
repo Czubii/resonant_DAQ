@@ -42,6 +42,9 @@ namespace TestRunner
         {
             var ProcessingService = new LiveSignalProcessor();
 
+            await using var rmsCsv = new RmsCsvWriter("rms.csv");
+            await using var fftCsv = new FftCsvWriter("fft.csv");
+
             var config = new AcquisitionConfig
             {
                 SampleRate = 10000,
@@ -74,18 +77,34 @@ namespace TestRunner
             try
             {
                 await DAQService.Start(config, cts.Token);
-                Console.WriteLine($"LOL");
                 await ProcessingService.Start(DAQService.Reader, cts.Token);
-                Console.WriteLine($"LOL");
 
-                var printerClosed = PrintRMSAsync(ProcessingService.RMSReader, cts.Token);
+                var rmsTask = Task.Run(async () =>
+                {
+                    await foreach (var frame in ProcessingService.RMSReader.ReadAllAsync())
+                    {
+                        await rmsCsv.WriteAsync(frame);
+
+                        Console.WriteLine($"RMS @ {frame.SampleIndex}");
+                    }
+                });
+                var fftTask = Task.Run(async () =>
+                {
+                    await foreach (var frame in ProcessingService.FFTReader.ReadAllAsync())
+                    {
+                        await fftCsv.WriteAsync(frame);
+
+                        Console.WriteLine($"FFT @ {frame.SampleIndex}");
+                    }
+                });
+
                 Console.WriteLine($"Acquisition Started");
                 await Task.Delay(10000);
                 Console.WriteLine($"Acquisition Stopping");
                 var stopProcessing = ProcessingService.StopAsync();
                 var stopAcquisition = DAQService.StopAsync();
 
-                await Task.WhenAll(stopAcquisition, stopProcessing, printerClosed);
+                await Task.WhenAll(stopAcquisition, stopProcessing, rmsTask, fftTask);
 
             }
             catch (OperationCanceledException)
@@ -133,6 +152,63 @@ namespace TestRunner
             }
 
             Console.WriteLine("-----------------------------------");
+        }
+    }
+
+    public sealed class RmsCsvWriter : IAsyncDisposable
+    {
+        private readonly StreamWriter _writer;
+
+        public RmsCsvWriter(string path)
+        {
+            _writer = new StreamWriter(path, append: false);
+            _writer.WriteLine("Timestamp,SampleIndex,Channel,Value");
+        }
+
+        public async Task WriteAsync(RmsFrame frame)
+        {
+            foreach (var ch in frame.Channels)
+            {
+                await _writer.WriteLineAsync(
+                    $"{frame.Timestamp:o},{frame.SampleIndex},{ch.AssignedChannelName},{ch.Value}");
+            }
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            await _writer.FlushAsync();
+            _writer.Dispose();
+        }
+    }
+
+    public sealed class FftCsvWriter : IAsyncDisposable
+    {
+        private readonly StreamWriter _writer;
+
+        public FftCsvWriter(string path)
+        {
+            _writer = new StreamWriter(path, append: false);
+            _writer.WriteLine("Timestamp,SampleIndex,Channel,Frequency,Magnitude");
+        }
+
+        public async Task WriteAsync(FftFrame frame)
+        {
+            int half = frame.Frequencies.Length;
+
+            foreach (var ch in frame.Channels)
+            {
+                for (int i = 0; i < half; i++)
+                {
+                    await _writer.WriteLineAsync(
+                        $"{frame.TimeStamp:o},{frame.SampleIndex},{ch.AssignedChannelName},{frame.Frequencies[i]},{ch.Bins[i].Magnitude}");
+                }
+            }
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            await _writer.FlushAsync();
+            _writer.Dispose();
         }
     }
 }
