@@ -19,7 +19,7 @@ namespace TestRunner
         static async Task Main(string[] args)
         {
             TestDiscovery();
-            var service = new CncMeasurement.Hardware.Acquisition.NIDataAcquisitionService();
+            var service = new CncMeasurement.MockHardware.MockDataAcquisitionService();
             await TestAcquisition(service);
         }
         static void TestDiscovery()
@@ -38,15 +38,14 @@ namespace TestRunner
             }
         }
 
-        static async Task TestAcquisition(IDataAcquisitionService service)
+        static async Task TestAcquisition(IDataAcquisitionService DAQService)
         {
-            var DAQService = new NIDataAcquisitionService();
             var ProcessingService = new LiveSignalProcessor();
 
             var config = new AcquisitionConfig
             {
                 SampleRate = 10000,
-                ChunkSize = 1000,
+                ChunkSize = 4096,
                 GroupName = "test",
                 OutputTDMSPath = "tetstoutput.tdms",
                 ChannelConfigs = new List<ChannelConfig>
@@ -58,7 +57,14 @@ namespace TestRunner
                     MinRange = -50,
                     MaxRange = 50,
                     Sensitivity = 100,
-                 
+                },
+                new ChannelConfig
+                {
+                    PhysicalChannelName = "cDAQ1Mod1/ai1",
+                    NameToAssignToChannel = "Accel Y",
+                    MinRange = -50,
+                    MaxRange = 50,
+                    Sensitivity = 100,
                 }
             }
             };
@@ -72,7 +78,7 @@ namespace TestRunner
                 await ProcessingService.Start(DAQService.Reader, cts.Token);
                 Console.WriteLine($"LOL");
 
-                var printerClosed = PrintDoubleAsync(ProcessingService.RMSReader, cts.Token);
+                var printerClosed = PrintRMSAsync(ProcessingService.RMSReader, cts.Token);
                 Console.WriteLine($"Acquisition Started");
                 await Task.Delay(10000);
                 Console.WriteLine($"Acquisition Stopping");
@@ -92,11 +98,15 @@ namespace TestRunner
                 Console.WriteLine("Acquisition stopped.");
             }
         }
-        static async Task PrintDoubleAsync(ChannelReader<double> reader, CancellationToken ct)
+        static async Task PrintRMSAsync(ChannelReader<RmsFrame> reader, CancellationToken ct)
         {
             await foreach (var value in reader.ReadAllAsync(ct))
             {
-                Console.WriteLine($"{value}");
+                Console.WriteLine($"RMS Acceleration (Starting Sample: {value.SampleIndex}, Time Stamp: {value.Timestamp.TimeOfDay}):");
+                foreach (var channel in value.Channels)
+                {
+                    Console.WriteLine($"{channel.AssignedChannelName}: {channel.Value}");
+                }
             }
         }
         static async Task PrintChunksAsync(ChannelReader<SampleChunk> reader, CancellationToken ct)

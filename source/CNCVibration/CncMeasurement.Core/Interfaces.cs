@@ -55,7 +55,7 @@ namespace CncMeasurement.Core.Interfaces
     {
         public Task Start(ChannelReader<SampleChunk> sampleChunkReader, CancellationToken ct = default);
         public Task StopAsync();
-        public ChannelReader<int> FFTReader { get; }
+        public ChannelReader<FftFrame> FFTReader { get; }
         public ChannelReader<RmsFrame> RMSReader { get; }
     }
 }
