@@ -19,7 +19,7 @@ namespace TestRunner
         static async Task Main(string[] args)
         {
             TestDiscovery();
-            var service = new CncMeasurement.Hardware.Acquisition.NIDataAcquisitionService();
+            var service = new CncMeasurement.MockHardware.MockDataAcquisitionService();
             await TestAcquisition(service);
         }
         static void TestDiscovery()
@@ -38,15 +38,17 @@ namespace TestRunner
             }
         }
 
-        static async Task TestAcquisition(IDataAcquisitionService service)
+        static async Task TestAcquisition(IDataAcquisitionService DAQService)
         {
-            var DAQService = new NIDataAcquisitionService();
             var ProcessingService = new LiveSignalProcessor();
+
+            await using var rmsCsv = new RmsCsvWriter("rms.csv");
+            await using var fftCsv = new FftCsvWriter("fft.csv");
 
             var config = new AcquisitionConfig
             {
                 SampleRate = 10000,
-                ChunkSize = 1000,
+                ChunkSize = 4096,
                 GroupName = "test",
                 OutputTDMSPath = "tetstoutput.tdms",
                 ChannelConfigs = new List<ChannelConfig>
@@ -58,7 +60,14 @@ namespace TestRunner
                     MinRange = -50,
                     MaxRange = 50,
                     Sensitivity = 100,
-                 
+                },
+                new ChannelConfig
+                {
+                    PhysicalChannelName = "cDAQ1Mod1/ai1",
+                    NameToAssignToChannel = "Accel Y",
+                    MinRange = -50,
+                    MaxRange = 50,
+                    Sensitivity = 100,
                 }
             }
             };
@@ -68,18 +77,34 @@ namespace TestRunner
             try
             {
                 await DAQService.Start(config, cts.Token);
-                Console.WriteLine($"LOL");
                 await ProcessingService.Start(DAQService.Reader, cts.Token);
-                Console.WriteLine($"LOL");
 
-                var printerClosed = PrintDoubleAsync(ProcessingService.RMSReader, cts.Token);
+                var rmsTask = Task.Run(async () =>
+                {
+                    await foreach (var frame in ProcessingService.RMSReader.ReadAllAsync())
+                    {
+                        await rmsCsv.WriteAsync(frame);
+
+                        Console.WriteLine($"RMS @ {frame.SampleIndex}");
+                    }
+                });
+                var fftTask = Task.Run(async () =>
+                {
+                    await foreach (var frame in ProcessingService.FFTReader.ReadAllAsync())
+                    {
+                        await fftCsv.WriteAsync(frame);
+
+                        Console.WriteLine($"FFT @ {frame.SampleIndex}");
+                    }
+                });
+
                 Console.WriteLine($"Acquisition Started");
                 await Task.Delay(10000);
                 Console.WriteLine($"Acquisition Stopping");
                 var stopProcessing = ProcessingService.StopAsync();
                 var stopAcquisition = DAQService.StopAsync();
 
-                await Task.WhenAll(stopAcquisition, stopProcessing, printerClosed);
+                await Task.WhenAll(stopAcquisition, stopProcessing, rmsTask, fftTask);
 
             }
             catch (OperationCanceledException)
@@ -92,11 +117,15 @@ namespace TestRunner
                 Console.WriteLine("Acquisition stopped.");
             }
         }
-        static async Task PrintDoubleAsync(ChannelReader<double> reader, CancellationToken ct)
+        static async Task PrintRMSAsync(ChannelReader<RmsFrame> reader, CancellationToken ct)
         {
             await foreach (var value in reader.ReadAllAsync(ct))
             {
-                Console.WriteLine($"{value}");
+                Console.WriteLine($"RMS Acceleration (Starting Sample: {value.SampleIndex}, Time Stamp: {value.Timestamp.TimeOfDay}):");
+                foreach (var channel in value.Channels)
+                {
+                    Console.WriteLine($"{channel.AssignedChannelName}: {channel.Value}");
+                }
             }
         }
         static async Task PrintChunksAsync(ChannelReader<SampleChunk> reader, CancellationToken ct)
@@ -123,6 +152,63 @@ namespace TestRunner
             }
 
             Console.WriteLine("-----------------------------------");
+        }
+    }
+
+    public sealed class RmsCsvWriter : IAsyncDisposable
+    {
+        private readonly StreamWriter _writer;
+
+        public RmsCsvWriter(string path)
+        {
+            _writer = new StreamWriter(path, append: false);
+            _writer.WriteLine("Timestamp,SampleIndex,Channel,Value");
+        }
+
+        public async Task WriteAsync(RmsFrame frame)
+        {
+            foreach (var ch in frame.Channels)
+            {
+                await _writer.WriteLineAsync(
+                    $"{frame.Timestamp:o},{frame.SampleIndex},{ch.AssignedChannelName},{ch.Value}");
+            }
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            await _writer.FlushAsync();
+            _writer.Dispose();
+        }
+    }
+
+    public sealed class FftCsvWriter : IAsyncDisposable
+    {
+        private readonly StreamWriter _writer;
+
+        public FftCsvWriter(string path)
+        {
+            _writer = new StreamWriter(path, append: false);
+            _writer.WriteLine("Timestamp,SampleIndex,Channel,Frequency,Magnitude");
+        }
+
+        public async Task WriteAsync(FftFrame frame)
+        {
+            int half = frame.Frequencies.Length;
+
+            foreach (var ch in frame.Channels)
+            {
+                for (int i = 0; i < half; i++)
+                {
+                    await _writer.WriteLineAsync(
+                        $"{frame.TimeStamp:o},{frame.SampleIndex},{ch.AssignedChannelName},{frame.Frequencies[i]},{ch.Bins[i].Magnitude}");
+                }
+            }
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            await _writer.FlushAsync();
+            _writer.Dispose();
         }
     }
 }
