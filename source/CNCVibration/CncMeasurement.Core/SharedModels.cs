@@ -87,15 +87,16 @@ namespace CncMeasurement.Core.models
         (
             long SampleIndex,
             int NumChannels,
-            string[] assignedChannelNames,
+            string[] AssignedChannelNames,
             int NumSamples,
-            DateTime TimeStamp,
+            double SampleRate,
+            DateTime TimeStamp, //Start of the window
             double[,] Samples
         );
         public sealed record RmsFrame
         (
             long SampleIndex,
-            DateTime Timestamp,
+            DateTime Timestamp, //Start of the window
             RmsChannel[] Channels
         );
         public sealed record RmsChannel
@@ -103,6 +104,25 @@ namespace CncMeasurement.Core.models
             string AssignedChannelName,
             double Value
         );
+
+        public sealed record FftBin
+        (
+            double Magnitude
+        );
+        public sealed record FftChannel
+        (
+            string AssignedChannelName,
+            FftBin[] Bins
+        );
+        public sealed record FftFrame
+        (
+            long SampleIndex,
+            int FFTSize,
+            double[] Frequencies,
+            DateTime TimeStamp, //Start of the window
+            FftChannel[] Channels
+        );
+
 
 }
 

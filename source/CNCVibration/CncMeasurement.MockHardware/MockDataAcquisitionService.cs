@@ -53,7 +53,7 @@ namespace CncMeasurement.MockHardware
 
                     var timestamp = startTimeUtc.AddSeconds((double)sampleIdx / config.SampleRate);
                     _channel.Writer.TryWrite(
-                        new SampleChunk(sampleIdx, channels, assignedChannelNames, count, timestamp, samples));
+                        new SampleChunk(sampleIdx, channels, assignedChannelNames, count, config.SampleRate, timestamp, samples));
 
                     sampleIdx += count;
 
@@ -100,7 +100,7 @@ namespace CncMeasurement.MockHardware
 
             double dt = 1.0 / config.SampleRate;
 
-            double baseFreq = 500.0;      // Hz
+            double baseFreq = 5000.0;      // Hz
             double amplitude = 1.0;
             double noiseAmp = 0.02;
 
