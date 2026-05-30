@@ -66,6 +66,7 @@ namespace CncMeasurement.Core.models
         public MachineConfig MachineConfiguration { get; set; }
 
         public AcquisitionConfig MeasurementConfig { get; set; }
+        public int DurationMS { get; set; }
     }
         public class ChannelConfig
         {

@@ -14,10 +14,10 @@ namespace CncMeasurement.Engine
 
         IMachineController _machineController;
         IDatabaseController _databaseController;
-        IProcessing _processor;
+        ILiveSignalProcessor _processor;
         IMeasurementBroadcaster _broadcaster;
         IDataAcquisitionService _DAQ;
-        public Engine(IMachineController machinecontroller, IDatabaseController databaseController, IProcessing processor, IMeasurementBroadcaster broadcaster)
+        public Engine(IMachineController machinecontroller, IDatabaseController databaseController, ILiveSignalProcessor processor, IMeasurementBroadcaster broadcaster)
         {
             _machineController = machinecontroller;
             _databaseController = databaseController;
@@ -56,12 +56,12 @@ namespace CncMeasurement.Engine
 
             // Run at the peak
 
-            _DAQ.StartAsync(_setup.MeasurementConfig);
+            _DAQ.Start(_setup.MeasurementConfig, ct);
             _machineController.RunContinous(500);
             var BroadcastingTask = BroadcastData(_DAQ.Reader, ct);
             
 
-            await Task.Delay((int)(_setup.MeasurementConfig.DurationSeconds*1000));
+            await Task.Delay((int)(_setup.DurationMS));
             await _machineController.Stop();
             await _DAQ.StopAsync();
             await BroadcastingTask;
