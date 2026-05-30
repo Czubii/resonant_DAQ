@@ -58,4 +58,8 @@ namespace CncMeasurement.Core.Interfaces
         public ChannelReader<int> FFTReader { get; }
         public ChannelReader<double> RMSReader { get; }
     }
+    public interface IDaqDiscovery
+    {
+        List<DeviceDescription> GetAvailableDevices();
+    }
 }
