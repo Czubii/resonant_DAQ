@@ -84,6 +84,13 @@ namespace CncMeasurement.Core.models
             public float SampleRate { get; set; } //= 10240.0;
             public int ChunkSize { get; set; } // optimal value will depend on sample rate. For 10kS/s 4096 should be an okay starting value
         }
+        public sealed record BroacastFrame
+        {
+            List<SampleChunk> samples;
+            List<RmsFrame> RmsFrames;
+            List<FftFrame> FftFrames;
+
+        }
         public sealed record SampleChunk
         (
             long SampleIndex,
@@ -123,7 +130,12 @@ namespace CncMeasurement.Core.models
             DateTime TimeStamp, //Start of the window
             FftChannel[] Channels
         );
-
+        public record PostProcessingResult
+        {
+        float RPM;
+        List<float> DominantFrequencies;
+        List<float> Magnitude;
+        }
 
 }
 
