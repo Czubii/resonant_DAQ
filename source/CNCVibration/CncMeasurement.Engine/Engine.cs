@@ -41,7 +41,7 @@ namespace CncMeasurement.Engine
         public async Task RunExperiment(CancellationToken ct)
         {
             int OutputCount = 3;
-            
+
             //await _machineController.SetYPosition(_setup.MachineConfiguration.Y);
 
             //_DAQ.StartAsync(_setup.MeasurementConfig);
@@ -58,22 +58,31 @@ namespace CncMeasurement.Engine
             // Gather the peaks from the data
 
             // Run at the peak
+            _databaseController.InitializeContext();
 
-
-
+            
             _DAQ.Start(_setup.MeasurementConfig, ct);
             _machineController.RunContinous(500);
+
             
+
             // broadcast the data to the different readers
             _outputReaders = Split(_DAQ.Reader, OutputCount);
             _processor.Start(_outputReaders[0], ct);
+            ChannelReader<RmsFrame> RMSreader = _processor.RMSReader;
+            ChannelReader<FftFrame> FFTreader = _processor.FFTReader;
 
-
+            _ = _databaseController.StartLogLiveExperiment(
+                _setup,
+                RMSreader,
+                FFTreader
+                );
+            
 
             await Task.Delay((int)(_setup.DurationMS));
             await _machineController.Stop();
             await _DAQ.StopAsync();
-
+            await _databaseController.StopLog();
 
             
         }
