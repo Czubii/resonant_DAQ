@@ -6,6 +6,7 @@ using CncMeasurement.Hardware;
 using CncMeasurement.Hardware.Acquisition;
 using CncMeasurement.Web.RequestPayloadSchemas;
 using Microsoft.AspNetCore.Mvc;
+using Newtonsoft.Json;
 
 namespace CncMeasurement.Web.Controllers
 {
@@ -103,7 +104,7 @@ namespace CncMeasurement.Web.Controllers
     [ApiController]
     [Route("[controller]")]
     public class GetSampleRequestController : ControllerBase
-    { 
+    {
         public string Get()
         {
             ExperimentRequest ex = new ExperimentRequest();
@@ -141,81 +142,94 @@ namespace CncMeasurement.Web.Controllers
             return Newtonsoft.Json.JsonConvert.SerializeObject(ex);
         }
 
+        [ApiController]
+        [Route("[controller]")]
+        public class RequestExperimentController : ControllerBase
+        {
+            private readonly IEngine _engine;
+            private ExperimentSetup _experimentSetup;
+            public RequestExperimentController(IEngine engine)
+            {
+                _engine = engine;
+            }
+            public IActionResult Post([FromBody] ExperimentRequest payload)
+            {
+                //check if all properties are not null
+
+                if (payload.GetType()
+                       .GetProperties()
+                       .Any(prop => prop.GetValue(payload) == null))
+                {
+                    return BadRequest("Incorrect request payload");
+                }
+
+                _experimentSetup = payload.ToExperiment();
+                _engine.LoadExperiment(_experimentSetup);
+
+                return Ok($"Created experiment with ID {_experimentSetup.ID}");
+            }
+        }
+
+        /* [ApiController]
+         [Route("[controller]")]
+         public class RequestSingleMeasurementController : ControllerBase
+         {
+
+
+             [HttpGet(Name = "RequestSingleMeasurement")]
+             public async Task<IActionResult> Get()
+             {
+                 var config = new MeasurementConfig() // TODO: Replace with parameters specified by user
+                 {
+                     SampleRate = 1000,
+                     DurationSeconds = 1,
+                     ChannelName = "cDAQ1Mod1/ai0"
+                 };
+
+                 try
+                 {
+                     double[] rawData = await _daqMeasurement.AcquireDataAsync(config);
+
+                     return Ok(new
+                     {
+                         Timestamp = DateTime.UtcNow,
+                         TotalSamples = rawData.Length,
+                         Data = rawData
+                     });
+                 }
+                 catch (Exception ex)
+                 {
+                     return StatusCode(500, new { Message = ex.Message });
+                 }
+             }
+         }
+
+         [ApiController]
+         [Route("[controller]")]
+         public class ListDevicesController : ControllerBase
+         {
+             private readonly IDaqDiscovery _DaqDiscovery;
+             public ListDevicesController(IDaqDiscovery daqDiscovery)
+             {
+                 _DaqDiscovery = daqDiscovery;
+             }
+             [HttpGet(Name = "ListDevices")]
+             public ActionResult<List<DeviceDescription>> Get()
+             {
+                 return Ok(_DaqDiscovery.GetAvailableDevices());
+             }
+         }*/
+    }
+
     [ApiController]
     [Route("[controller]")]
-    public class RequestExperimentController : ControllerBase
+    public class GetSensorsController
     {
-        private readonly IEngine _engine;
-        private ExperimentSetup _experimentSetup;
-        public RequestExperimentController(IEngine engine)
+        public IDaqDiscovery _daqdiscovery { get; set; }
+        public string Get()
         {
-            _engine = engine;
-        }
-        public IActionResult Post([FromBody] ExperimentRequest payload)
-        {
-            //check if all properties are not null
-
-            if(payload.GetType()
-                   .GetProperties()
-                   .Any(prop => prop.GetValue(payload) == null))
-            {
-                return BadRequest("Incorrect request payload");
-            }
-
-            _experimentSetup = payload.ToExperiment();
-            _engine.LoadExperiment(_experimentSetup);
-           
-           return Ok($"Created experiment with ID {_experimentSetup.ID}"); 
+            return JsonConvert.SerializeObject(_daqdiscovery.GetAvailableDevices());
         }
     }
 
-    /* [ApiController]
-     [Route("[controller]")]
-     public class RequestSingleMeasurementController : ControllerBase
-     {
-
-
-         [HttpGet(Name = "RequestSingleMeasurement")]
-         public async Task<IActionResult> Get()
-         {
-             var config = new MeasurementConfig() // TODO: Replace with parameters specified by user
-             {
-                 SampleRate = 1000,
-                 DurationSeconds = 1,
-                 ChannelName = "cDAQ1Mod1/ai0"
-             };
-
-             try
-             {
-                 double[] rawData = await _daqMeasurement.AcquireDataAsync(config);
-
-                 return Ok(new
-                 {
-                     Timestamp = DateTime.UtcNow,
-                     TotalSamples = rawData.Length,
-                     Data = rawData
-                 });
-             }
-             catch (Exception ex)
-             {
-                 return StatusCode(500, new { Message = ex.Message });
-             }
-         }
-     }
-
-     [ApiController]
-     [Route("[controller]")]
-     public class ListDevicesController : ControllerBase
-     {
-         private readonly IDaqDiscovery _DaqDiscovery;
-         public ListDevicesController(IDaqDiscovery daqDiscovery)
-         {
-             _DaqDiscovery = daqDiscovery;
-         }
-         [HttpGet(Name = "ListDevices")]
-         public ActionResult<List<DeviceDescription>> Get()
-         {
-             return Ok(_DaqDiscovery.GetAvailableDevices());
-         }
-     }*/
 }

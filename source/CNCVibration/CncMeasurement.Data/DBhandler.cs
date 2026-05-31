@@ -97,26 +97,6 @@ namespace CncMeasurement.Data
             return null;
         }
 
-        public void InitializeCollections()
-        {
-            using (var connection = new SqliteConnection(_connectionString))
-            {
-                connection.Open();
-
-                var command = connection.CreateCommand();
-                command.CommandText = @"
-                    CREATE TABLE IF NOT EXISTS Measurements (
-                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    Timestamp TEXT NOT NULL,
-                    Graphs TEXT,
-                    Description TEXT,
-                    Notes TEXT
-                 )";
-                command.ExecuteNonQuery();
-            }
-
-        }
-
         public void ClearDatabase()
         {
             throw new NotImplementedException();
@@ -220,73 +200,6 @@ namespace CncMeasurement.Data
 
         public MeasurementMetadata GetMeasurementByID(int measurementID)
         {
-            using (var connection = new SqliteConnection(_connectionString))
-            {
-                connection.Open();
-                var command = connection.CreateCommand();
-
-                // Use $id parameter to safely query a specific row
-                command.CommandText = "SELECT * FROM Measurements WHERE Id = $id";
-                command.Parameters.AddWithValue("$id", measurementID);
-
-                using (var reader = command.ExecuteReader())
-                {
-                    // We use 'if' instead of 'while' because IDs are unique; there will only be one result.
-                    if (reader.Read())
-                    {
-                        var measurement = new MeasurementMetadata();
-                        var properties = typeof(MeasurementMetadata).GetProperties();
-
-                        // Dynamically map the columns to the C# properties
-                        foreach (var prop in properties)
-                        {
-                            int ordinal;
-                            try
-                            {
-                                ordinal = reader.GetOrdinal(prop.Name);
-                            }
-                            catch (IndexOutOfRangeException)
-                            {
-                                continue; // Column not found in DB, skip
-                            }
-
-                            if (reader.IsDBNull(ordinal))
-                            {
-                                if (prop.PropertyType == typeof(GraphMetadata[]))
-                                {
-                                    prop.SetValue(measurement, Array.Empty<GraphMetadata>());
-                                }
-                                continue;
-                            }
-
-                            object dbValue = reader.GetValue(ordinal);
-
-                            // Handle special type conversions
-                            if (prop.PropertyType == typeof(GraphMetadata[]))
-                            {
-                                string json = (string)dbValue;
-                                // Deserialize the JSON string back to an array using Newtonsoft
-                                var graphs = JsonConvert.DeserializeObject<GraphMetadata[]>(json);
-                                prop.SetValue(measurement, graphs);
-                            }
-                            else if (prop.PropertyType == typeof(DateTime))
-                            {
-                                DateTime dt = DateTime.Parse((string)dbValue);
-                                prop.SetValue(measurement, dt);
-                            }
-                            else
-                            {
-                                object convertedValue = Convert.ChangeType(dbValue, prop.PropertyType);
-                                prop.SetValue(measurement, convertedValue);
-                            }
-                        }
-
-                        return measurement; // Return the fully populated object
-                    }
-                }
-            }
-
-            // If reader.Read() is false, the ID doesn't exist in the database
             return null;
         }
     }

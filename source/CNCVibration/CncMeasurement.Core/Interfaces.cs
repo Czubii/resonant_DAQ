@@ -27,15 +27,11 @@ namespace CncMeasurement.Core.Interfaces
     {
         void InitializeContext();
         Task StartLogLiveExperiment(ExperimentSetup setup, ChannelReader<RmsFrame> RMSreader, ChannelReader<FftFrame> FFTreader);
-        Task SaveCurrentExperiment();
         Task StopLog();
         DBinfo listCollections();
         
-        // NOT NEEDED 
-        void InitializeCollections();
+      
         void ClearDatabase();
-        // NOT NEEDED
-        void AddMeasurementEntry(MeasurementMetadata MeasuredData);
         MeasurementMetadata GetMeasurementByID(int measurementID);
 
         List<BriefMeasurementInfo> GetMeasurementSummaries();
