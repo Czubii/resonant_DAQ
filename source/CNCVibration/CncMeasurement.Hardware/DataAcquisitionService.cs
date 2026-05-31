@@ -62,6 +62,8 @@ namespace CncMeasurement.Hardware.Acquisition
         {
             long sampleIdx = 0;
             var startTimeUtc = DateTime.UtcNow;
+            string[] assignedChannelNames = config.ChannelConfigs.Select(a => a.NameToAssignToChannel).ToArray();
+
             try
             {
                 while (!ct.IsCancellationRequested)
@@ -72,7 +74,8 @@ namespace CncMeasurement.Hardware.Acquisition
                     int count = samples.GetLength(1);
 
                     var timestamp = startTimeUtc.AddSeconds((double)sampleIdx / config.SampleRate);
-                    _channel.Writer.TryWrite(new SampleChunk(sampleIdx, channels, count, timestamp, samples));
+                    _channel.Writer.TryWrite(
+                        new SampleChunk(sampleIdx, channels, assignedChannelNames, count, config.SampleRate, timestamp, samples));
 
                     sampleIdx += count;
                 }

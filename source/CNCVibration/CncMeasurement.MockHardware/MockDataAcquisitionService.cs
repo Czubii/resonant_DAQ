@@ -40,6 +40,7 @@ namespace CncMeasurement.MockHardware
             long sampleIdx = 0;
             int delayMs = (int)(1000.0 * config.ChunkSize / config.SampleRate);
             var startTimeUtc = DateTime.UtcNow;
+            string[] assignedChannelNames = config.ChannelConfigs.Select(a => a.NameToAssignToChannel).ToArray();
 
             try
             {
@@ -51,7 +52,8 @@ namespace CncMeasurement.MockHardware
                     int count = samples.GetLength(1);
 
                     var timestamp = startTimeUtc.AddSeconds((double)sampleIdx / config.SampleRate);
-                    _channel.Writer.TryWrite(new SampleChunk(sampleIdx, channels, count, timestamp, samples));
+                    _channel.Writer.TryWrite(
+                        new SampleChunk(sampleIdx, channels, assignedChannelNames, count, config.SampleRate, timestamp, samples));
 
                     sampleIdx += count;
 
