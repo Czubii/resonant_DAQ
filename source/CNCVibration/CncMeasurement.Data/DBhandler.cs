@@ -1,26 +1,77 @@
-﻿using System;
+﻿using CncMeasurement.Core.Interfaces;
+using CncMeasurement.Core.models;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using Newtonsoft.Json; // Swapped to Newtonsoft.Json
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices.Marshalling;
 using System.Text;
+using System.Threading.Channels;
 using System.Threading.Tasks;
-using CncMeasurement.Core.models;
-using CncMeasurement.Core.Interfaces;
-using Microsoft.Data.Sqlite;
-using Newtonsoft.Json; // Swapped to Newtonsoft.Json
 
 namespace CncMeasurement.Data
 {
-    
+    internal class MeasurementContext : DbContext
+    {
+        internal DbSet<ExperimentSchema> Experiments { get; set; }
+
+        public string DbPath { get; }
+
+        public MeasurementContext(string dbPath)
+        {
+            var folder = Environment.SpecialFolder.LocalApplicationData;
+            var path = Environment.GetFolderPath(folder);
+            DbPath = Path.Join(path, "Measurements.db");
+        }
+        protected override void OnConfiguring(DbContextOptionsBuilder options)
+        {
+            options.UseSqlite($"Data Source={DbPath}");
+        }
+    }
 
     public class DatabaseController : IDatabaseController
     {
-        private readonly string _connectionString;
-
-        public DatabaseController(string ConnectionString)
+        private FileWritingController FileController;
+        ExperimentSetup _currentExperiment;
+        MeasurementContext _context;
+        private readonly string DBpath;
+        public DatabaseController(string path)
         {
-            _connectionString = ConnectionString;
+            DBpath = path;
+        }
+        public void InitializeContext()
+        {
+            _context = new MeasurementContext(DBpath);
+        }
+        public async Task StartLogLiveExperiment(ExperimentSetup setup, ChannelReader<RmsFrame> RMSreader, ChannelReader<FftFrame> FFTreader)
+        {
+            _currentExperiment = setup;
+            FileController = new FileWritingController(_currentExperiment);
+            var RMSTask = FileController.WriteCompleteRMSAsync(RMSreader);
+            var FFTTask = FileController.WriteCompleteFFTAsync(FFTreader);
+
+            await RMSTask;
+            await FFTTask;
         }
 
+        private async Task SaveCurrentExperiment()
+        {
+            _context.Add(_currentExperiment);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task StopLog()
+        {
+            await FileController.StopSaving();
+
+
+            // Create database entries
+            await SaveCurrentExperiment();
+
+        }
         // make Csharp types into strings so they can be stored in the database
         private string MapCsharpTypeToSqlite(Type type)
         {
@@ -37,31 +88,13 @@ namespace CncMeasurement.Data
             return "TEXT";
         }
 
+        
+
         public DBinfo listCollections()
         {
             //code to acces collections
 
             return null;
-        }
-
-        public void InitializeCollections()
-        {
-            using (var connection = new SqliteConnection(_connectionString))
-            {
-                connection.Open();
-
-                var command = connection.CreateCommand();
-                command.CommandText = @"
-                    CREATE TABLE IF NOT EXISTS Measurements (
-                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    Timestamp TEXT NOT NULL,
-                    Graphs TEXT,
-                    Description TEXT,
-                    Notes TEXT
-                 )";
-                command.ExecuteNonQuery();
-            }
-
         }
 
         public void ClearDatabase()
@@ -86,12 +119,6 @@ namespace CncMeasurement.Data
                 foreach (var prop in properties)
                 {
                     string propName = prop.Name;
-
-                    // Skip the Primary Key (let SQLite auto-increment it)
-                    if (propName.Equals("Id", StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
 
                     string paramName = "$" + propName;
                     columnNames.Add(propName);
@@ -173,73 +200,6 @@ namespace CncMeasurement.Data
 
         public MeasurementMetadata GetMeasurementByID(int measurementID)
         {
-            using (var connection = new SqliteConnection(_connectionString))
-            {
-                connection.Open();
-                var command = connection.CreateCommand();
-
-                // Use $id parameter to safely query a specific row
-                command.CommandText = "SELECT * FROM Measurements WHERE Id = $id";
-                command.Parameters.AddWithValue("$id", measurementID);
-
-                using (var reader = command.ExecuteReader())
-                {
-                    // We use 'if' instead of 'while' because IDs are unique; there will only be one result.
-                    if (reader.Read())
-                    {
-                        var measurement = new MeasurementMetadata();
-                        var properties = typeof(MeasurementMetadata).GetProperties();
-
-                        // Dynamically map the columns to the C# properties
-                        foreach (var prop in properties)
-                        {
-                            int ordinal;
-                            try
-                            {
-                                ordinal = reader.GetOrdinal(prop.Name);
-                            }
-                            catch (IndexOutOfRangeException)
-                            {
-                                continue; // Column not found in DB, skip
-                            }
-
-                            if (reader.IsDBNull(ordinal))
-                            {
-                                if (prop.PropertyType == typeof(GraphMetadata[]))
-                                {
-                                    prop.SetValue(measurement, Array.Empty<GraphMetadata>());
-                                }
-                                continue;
-                            }
-
-                            object dbValue = reader.GetValue(ordinal);
-
-                            // Handle special type conversions
-                            if (prop.PropertyType == typeof(GraphMetadata[]))
-                            {
-                                string json = (string)dbValue;
-                                // Deserialize the JSON string back to an array using Newtonsoft
-                                var graphs = JsonConvert.DeserializeObject<GraphMetadata[]>(json);
-                                prop.SetValue(measurement, graphs);
-                            }
-                            else if (prop.PropertyType == typeof(DateTime))
-                            {
-                                DateTime dt = DateTime.Parse((string)dbValue);
-                                prop.SetValue(measurement, dt);
-                            }
-                            else
-                            {
-                                object convertedValue = Convert.ChangeType(dbValue, prop.PropertyType);
-                                prop.SetValue(measurement, convertedValue);
-                            }
-                        }
-
-                        return measurement; // Return the fully populated object
-                    }
-                }
-            }
-
-            // If reader.Read() is false, the ID doesn't exist in the database
             return null;
         }
     }

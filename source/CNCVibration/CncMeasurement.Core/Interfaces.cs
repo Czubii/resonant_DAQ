@@ -25,10 +25,13 @@ namespace CncMeasurement.Core.Interfaces
     }
     public interface IDatabaseController
     {
+        void InitializeContext();
+        Task StartLogLiveExperiment(ExperimentSetup setup, ChannelReader<RmsFrame> RMSreader, ChannelReader<FftFrame> FFTreader);
+        Task StopLog();
         DBinfo listCollections();
-        void InitializeCollections();
+        
+      
         void ClearDatabase();
-        void AddMeasurementEntry(MeasurementMetadata MeasuredData);
         MeasurementMetadata GetMeasurementByID(int measurementID);
 
         List<BriefMeasurementInfo> GetMeasurementSummaries();

@@ -54,7 +54,6 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var dbController = scope.ServiceProvider.GetRequiredService<IDatabaseController>();
-    dbController.InitializeCollections();
 }
 
 

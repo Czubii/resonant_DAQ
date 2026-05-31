@@ -19,3 +19,5 @@ Accept: application/json
 GET {{CncMeasurement.Web_HostAddress}}/GetSampleRequest/
 Accept: application/json
 
+GET {{CncMeasurement.Web_HostAddress}}/GetSensors/
+Accept: application/json

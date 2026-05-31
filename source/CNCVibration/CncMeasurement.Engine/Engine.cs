@@ -5,6 +5,7 @@ using CncMeasurement.Machine;
 using CncMeasurement.Processing;
 using System.Diagnostics.Contracts;
 using System.Threading.Channels;
+using System.Runtime.CompilerServices;
 
 namespace CncMeasurement.Engine
 {
@@ -14,18 +15,19 @@ namespace CncMeasurement.Engine
 
         IMachineController _machineController;
         IDatabaseController _databaseController;
-        IProcessing _processor;
+        ILiveSignalProcessor _processor;
         IMeasurementBroadcaster _broadcaster;
         IDataAcquisitionService _DAQ;
-        public Engine(IMachineController machinecontroller, IDatabaseController databaseController, IProcessing processor, IMeasurementBroadcaster broadcaster)
+        public Engine(IMachineController machinecontroller, IDatabaseController databaseController, ILiveSignalProcessor processor, IMeasurementBroadcaster broadcaster)
         {
             _machineController = machinecontroller;
             _databaseController = databaseController;
             _processor = processor;
             _broadcaster = broadcaster;
         }
-
+        private List<ChannelReader<SampleChunk>> _outputReaders;
         ExperimentSetup _setup;
+        
         /// measurement procedure:
         /// 1. Load the data to the machine.
 
@@ -38,6 +40,7 @@ namespace CncMeasurement.Engine
         /// 8. send notification about the completion
         public async Task RunExperiment(CancellationToken ct)
         {
+            int OutputCount = 3;
 
             //await _machineController.SetYPosition(_setup.MachineConfiguration.Y);
 
@@ -55,24 +58,80 @@ namespace CncMeasurement.Engine
             // Gather the peaks from the data
 
             // Run at the peak
+            _databaseController.InitializeContext();
 
-            _DAQ.StartAsync(_setup.MeasurementConfig);
+            
+            _DAQ.Start(_setup.MeasurementConfig, ct);
             _machineController.RunContinous(500);
-            var BroadcastingTask = BroadcastData(_DAQ.Reader, ct);
+
             
 
-            await Task.Delay((int)(_setup.MeasurementConfig.DurationSeconds*1000));
+            // broadcast the data to the different readers
+            _outputReaders = Split(_DAQ.Reader, OutputCount);
+            _processor.Start(_outputReaders[0], ct);
+            ChannelReader<RmsFrame> RMSreader = _processor.RMSReader;
+            ChannelReader<FftFrame> FFTreader = _processor.FFTReader;
+
+            _ = _databaseController.StartLogLiveExperiment(
+                _setup,
+                RMSreader,
+                FFTreader
+                );
+            
+
+            await Task.Delay((int)(_setup.DurationMS));
             await _machineController.Stop();
             await _DAQ.StopAsync();
-            await BroadcastingTask;
+            await _databaseController.StopLog();
+
+            
+        }
+
+        private static List<ChannelReader<SampleChunk>> Split(ChannelReader<SampleChunk> sourceReader, int outputCount)
+        {
+            var outputs = new Channel<SampleChunk>[outputCount];
+
+            for (int i = 0; i < outputCount; i++)
+            {
+                outputs[i] = Channel.CreateUnbounded<SampleChunk>();
+            }
+
+            // Fire and forget the background worker that routes the traffic
+            _ = Task.Run(() => BroadcastLoopAsync(sourceReader, outputs));
+
+            // Return just the readers so your functions can consume them safely
+            return outputs.Select(ch => ch.Reader).ToList();
+        }
+
+        private static async Task BroadcastLoopAsync(ChannelReader<SampleChunk> source, Channel<SampleChunk>[] outputs)
+        {
+            try
+            {
+                // Read until the source channel is marked as complete
+                await foreach (var chunk in source.ReadAllAsync())
+                {
+                    foreach (var output in outputs)
+                    {
+                        // Write the exact same chunk reference to all subscribers
+                        await output.Writer.WriteAsync(chunk);
+                    }
+                }
+            }
+            finally
+            {
+                // If the source channel finishes (or crashes), gracefully close the output channels
+                foreach (var output in outputs)
+                {
+                    output.Writer.Complete();
+                }
+            }
         }
         private async Task BroadcastData(ChannelReader<SampleChunk> reader, CancellationToken ct)
         {
             await foreach (var data in reader.ReadAllAsync(ct))
             {
-                _processor.QueueForProcessingAsync(data, ct);
-                _databaseController.QueueForSavingAsync(data, ct);
-                _broadcaster.BroadcastMeasurementAsync(data, ct);
+                
+                
             }
         }
         private async Task BroadcastDataSweep(ChannelReader<SampleChunk> reader, CancellationToken ct)
