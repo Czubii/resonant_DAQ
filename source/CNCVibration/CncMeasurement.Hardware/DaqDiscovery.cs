@@ -8,11 +8,7 @@ using CncMeasurement.Core.models;
 
 namespace CncMeasurement.Hardware
 {
-    public interface IDaqDiscovery
-    {
-        List<DeviceDescription> GetAvailableDevices();
-    }
-    public class DaqDiscovery : IDaqDiscovery
+    public class DaqDiscovery : Core.Interfaces.IDaqDiscovery
     {
         public List<DeviceDescription> GetAvailableDevices()
         {
