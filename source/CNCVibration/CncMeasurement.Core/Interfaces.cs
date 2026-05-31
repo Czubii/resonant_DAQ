@@ -62,4 +62,8 @@ namespace CncMeasurement.Core.Interfaces
     {
         List<DeviceDescription> GetAvailableDevices();
     }
+    public interface IDaqDiscovery
+    {
+        List<DeviceDescription> GetAvailableDevices();
+    }
 }
