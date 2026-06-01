@@ -141,7 +141,7 @@ namespace CncMeasurement.MockHardware
 
                     // The channel experiences the impulse impact + the structural ringing, plus noise
                     // Note: phase shifts per channel can be added inside the Sin functions above if needed
-                    samples[ch, i] = chGain * (impulse + response) + noise;
+                    samples[ch, i] = chGain * (impulse + response * (1 + 0.5*ch)) + noise;
                 }
             }
 
