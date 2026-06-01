@@ -86,9 +86,12 @@ namespace CncMeasurement.Core.models
         }
         public class TriggerAcquisitionConfig
         {
-            public int PreTriggerChunks { get; set; }
-            public int PostTriggerChunks { get; set; }
-    }
+            public double SampleRate { get; set; }
+            public List<ChannelConfig> ChannelConfigs { get; set; }
+            public int RawInputChunkSize { get; set; }
+            public int PreTriggerWindowMs { get; set; }
+            public int PostTriggerWindowMs { get; set; }
+        }
         public sealed record BroacastFrame
         {
             List<SampleChunk> samples;
@@ -96,17 +99,26 @@ namespace CncMeasurement.Core.models
             List<FftFrame> FftFrames;
 
         }
-        public sealed record SampleChunk
+        public sealed record SampleChunk // Used for sample transport between daq an windowing/trigger layers
         (
             long SampleIndex,
             int NumChannels,
             string[] AssignedChannelNames,
             int NumSamples,
             double SampleRate,
-            DateTime TimeStamp, //Start of the window
+            DateTime TimeStamp, //Start of the Chunk
             double[,] Samples
         );
-        public sealed record RmsFrame
+        public sealed record SignalWindow // Used for measurement transport between windowing/trigger layers and processing
+        (
+            long SampleIndex,
+            int NumChannels,
+            string[] AssignedChannelNames,
+            double SampleRate,
+            DateTime TimeStamp, //Start of the window
+            double[][] Samples
+        );
+    public sealed record RmsFrame
         (
             long SampleIndex,
             DateTime Timestamp, //Start of the window

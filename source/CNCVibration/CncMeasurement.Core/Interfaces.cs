@@ -67,12 +67,12 @@ namespace CncMeasurement.Core.Interfaces
     }
     public interface ITriggerDetector
     {
-        bool IsTriggered(SampleChunk chunk);
+        bool IsTriggered(double[] samples);
     }
     public interface ISingleTriggerAcquisitionService
     {
         public Task Start(ChannelReader<SampleChunk> input, TriggerAcquisitionConfig config, ITriggerDetector trigger, CancellationToken ct = default);
         public Task StopAsync();
-        public ChannelReader<SampleChunk> Reader { get; }
+        public ChannelReader<SignalWindow> Reader { get; }
     }
 }

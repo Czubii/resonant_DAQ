@@ -22,24 +22,19 @@ namespace CncMeasurement.Processing
         /// <summary>
         /// 
         /// </summary>
-        /// <param name="chunk"></param>
+        /// <param name="samples">Array of samples - one sample per channel</param>
         /// <returns>true if absolute value of sample on any channel is over threshold </returns>
-        public bool IsTriggered(SampleChunk chunk)
+        public bool IsTriggered(double[] samples)
         {
-            var data = chunk.Samples;
-
-            int channels = data.GetLength(0);
-            int samples = data.GetLength(1);
+            int channels = samples.Length;
 
             for (int c = 0; c < channels; c++)
             {
-                for (int i = 0; i < samples; i++)
+                if (Math.Abs(samples[c]) >= _threshold)
                 {
-                    if (Math.Abs(data[c, i]) >= _threshold)
-                        return true;
+                    return true;
                 }
             }
-
             return false;
         }
     }
