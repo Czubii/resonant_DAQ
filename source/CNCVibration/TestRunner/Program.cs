@@ -73,7 +73,7 @@ namespace TestRunner
             {
                 SampleRate = config.SampleRate,
                 ChannelConfigs = config.ChannelConfigs,
-                PreTriggerWindowMs = 10,
+                PreTriggerWindowMs = 1,
                 PostTriggerWindowMs = 100
             };
 
