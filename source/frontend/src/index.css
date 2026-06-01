@@ -1,7 +1,12 @@
-body {
+html, body {
   margin: 0;
   padding: 0;
+
+  /* 🔥 TO JEST KLUCZ */
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+
   background-color: #111;
+  color: white;
 }
 
 * {

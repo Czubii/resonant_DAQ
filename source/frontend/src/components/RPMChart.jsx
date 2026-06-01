@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import Plotly from "plotly.js-dist-min";
 
-export default function FFTChart() {
+export default function RPMChart() {
   const ref = useRef(null);
 
   useEffect(() => {
@@ -12,23 +12,26 @@ export default function FFTChart() {
       el,
       [
         {
-          x: [0, 10, 20, 30, 40, 50],
-          y: [0, 0.2, 0.6, 0.3, 0.8, 0.4],
+          x: [1000, 2000, 3000, 4000, 5000],
+          y: [0.1, 0.4, 0.9, 0.5, 0.3],
           type: "scatter",
-          mode: "lines",
-          line: { color: "#00d4ff" },
+          mode: "lines+markers",
+          line: { color: "#ffcc00" },
         },
       ],
       {
-        title: "FFT Spectrum",
+        title: "RPM Amplitude",
 
+  
         paper_bgcolor: "#1b1b1b",
         plot_bgcolor: "#1b1b1b",
 
         font: { color: "#fff" },
 
-
         margin: { t: 40, l: 40, r: 20, b: 40 },
+
+        xaxis: { title: "RPM" },
+        yaxis: { title: "Amplitude" },
 
         showlegend: false,
       },
