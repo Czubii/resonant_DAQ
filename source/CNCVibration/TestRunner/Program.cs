@@ -45,7 +45,7 @@ namespace TestRunner
 
             var config = new AcquisitionConfig
             {
-                SampleRate = 10000,
+                SampleRate = 5000,
                 ChunkSize = 4096,
                 GroupName = "test",
                 OutputTDMSPath = "tetstoutput.tdms",
