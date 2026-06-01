@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -12,14 +13,23 @@ namespace CncMeasurement.Processing
 {
     public class FFTSpectrum
     {
-        public static FftFrame Compute(SignalWindow signalWindow)
+        public static FftFrame Compute(SignalFrame signalWindow)
         {
-            int channels = signalWindow.NumChannels;
+            int channels = signalWindow.Channels.Length;
 
-            int nRaw = signalWindow.Samples[0].Length;
+            int nRaw = signalWindow.Channels[0].Samples.Length;
             int n = NextPowerOfTwo(nRaw);
 
             double[] window = Window.Hann(nRaw); // window applied only to real data
+
+            // Calculate window gain correction factor
+            // For Hann window, the sum of weights is roughly 0.5 * nRaw
+            double windowSum = 0.0;
+            for (int i = 0; i < nRaw; i++) windowSum += window[i];
+
+            // Scaling factor: 2.0 for single-sided spectrum correction, 
+            // divided by windowSum to correct for Hann window attenuation.
+            double amplitudeScaling = 2.0 / windowSum;
 
             int half = n / 2;
 
@@ -41,7 +51,7 @@ namespace CncMeasurement.Processing
                 for (int i = 0; i < nRaw; i++)
                 {
                     buffer[i] = new Complex(
-                        signalWindow.Samples[ch][i] * window[i],
+                        signalWindow.Channels[ch].Samples[i] * window[i],
                         0.0);
                 }
 
@@ -54,18 +64,27 @@ namespace CncMeasurement.Processing
                 Fourier.Forward(buffer, FourierOptions.Matlab);
 
                 var bins = new FftBin[half];
+                double largestMag = 0.0;
+                double largestMagFrequency = 0.0;
 
                 for (int i = 0; i < half; i++)
                 {
                     double mag = buffer[i].Magnitude;
 
-                    mag *= 2.0 / n; // amplitude correction based on FFT size
+                    mag *= amplitudeScaling; // amplitude correction based on FFT size
 
+                    if (mag > largestMag)
+                    {
+                        largestMag = mag;
+                        largestMagFrequency = frequencies[i];
+                    }
                     bins[i] = new FftBin(mag);
                 }
 
                 outputChannels[ch] = new FftChannel(
-                    signalWindow.AssignedChannelNames[ch],
+                    signalWindow.Channels[ch].AssignedChannelName,
+                    largestMagFrequency,
+                    largestMag, 
                     bins);
             }
 

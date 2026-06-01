@@ -45,7 +45,7 @@ namespace TestRunner
 
             var config = new AcquisitionConfig
             {
-                SampleRate = 5000,
+                SampleRate = 20000,
                 ChunkSize = 4096,
                 GroupName = "test",
                 OutputTDMSPath = "tetstoutput.tdms",
@@ -139,23 +139,23 @@ namespace TestRunner
                 }
             }
         }
-        static async Task WriteRawCsv(string path, SignalWindow window)
+        static async Task WriteRawCsv(string path, SignalFrame window)
         {
             await using var writer = new StreamWriter(path);
 
             await writer.WriteLineAsync("time,channel,value");
 
             double dt = 1.0 / window.SampleRate;
-            int samples = window.Samples[0].Length;
+            int samples = window.Channels[0].Samples.Length;
 
             for (int i = 0; i < samples; i++)
             {
                 double t = i * dt;
 
-                for (int ch = 0; ch < window.NumChannels; ch++)
+                for (int ch = 0; ch < window.Channels.Length; ch++)
                 {
                     await writer.WriteLineAsync(
-                        $"{t},{window.AssignedChannelNames[ch]},{window.Samples[ch][i]}");
+                        $"{t},{window.Channels[ch].AssignedChannelName},{window.Channels[ch].Samples[i]}");
                 }
             }
         }
