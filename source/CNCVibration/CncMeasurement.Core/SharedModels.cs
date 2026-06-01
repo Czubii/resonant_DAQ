@@ -84,11 +84,10 @@ namespace CncMeasurement.Core.models
             public float SampleRate { get; set; } //= 10240.0;
             public int ChunkSize { get; set; } // optimal value will depend on sample rate. For 10kS/s 4096 should be an okay starting value
         }
-        public class TriggerAcquisitionConfig
+        public class TriggerConfig
         {
             public double SampleRate { get; set; }
             public List<ChannelConfig> ChannelConfigs { get; set; }
-            public int RawInputChunkSize { get; set; }
             public int PreTriggerWindowMs { get; set; }
             public int PostTriggerWindowMs { get; set; }
         }

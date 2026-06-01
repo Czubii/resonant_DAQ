@@ -1,16 +1,16 @@
 ﻿using CncMeasurement.Core.Interfaces;
 using CncMeasurement.Core.models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Text;
 using System.Threading.Channels;
-using System.Threading.Tasks;
+using System.Timers;
 
 namespace CncMeasurement.MockHardware
 {
-    public class ImpulseSignalGenerator : IDataAcquisitionService
+    /// <summary>
+    /// Used for generating some test data to test the processing and main pipelines. 
+    /// Doesn't generate the tdms output
+    /// </summary>
+    public class SimpleSignalGenerator: IDataAcquisitionService
     {
         private Channel<SampleChunk> _channel = Channel.CreateUnbounded<SampleChunk>();
         public ChannelReader<SampleChunk> Reader => _channel.Reader;
@@ -100,13 +100,9 @@ namespace CncMeasurement.MockHardware
 
             double dt = 1.0 / config.SampleRate;
 
-            double t0 = 20.0;          // impulse time (seconds)
-            double baseFreq = 500.0;  // vibration mode
-            double amplitude = 20;
+            double baseFreq = 500.0;      // Hz
+            double amplitude = 1.0;
             double noiseAmp = 0.02;
-
-            double damping = 50;     // exponential decay factor
-            double impulseAmp = 25;   // excitation strength
 
             var rand = Random.Shared;
 
@@ -114,34 +110,18 @@ namespace CncMeasurement.MockHardware
             {
                 double t = _time + i * dt;
 
-                // 1. The sharp physical impact (Gaussian spike)
-                double impulse = impulseAmp * Math.Exp(-Math.Pow((t - t0) / 0.002, 2));
-
-                // 2. The structural response (Ring-down)
-                double response = 0.0;
-
-                if (t >= t0)
-                {
-                    double dT = t - t0; // Time elapsed since the hit
-
-                    double structuralDamping = Math.Exp(-damping * dT);
-
-                    // All structural frequencies/harmonics must be multiplied by the damping
-                    double vibrations = amplitude * Math.Sin(2 * Math.PI * baseFreq * dT)
-                                      + 0.5 * Math.Sin(2 * Math.PI * (baseFreq * 3) * dT);
-
-                    response = vibrations * structuralDamping;
-                }
-
-                // 3. Combine everything per channel
                 for (int ch = 0; ch < channels; ch++)
                 {
-                    double noise = (rand.NextDouble() - 0.5) * 2.0 * noiseAmp;
-                    double chGain = 1.0 - ch * 0.1;
+                    // phase shift per channel
+                    double phase = ch * 0.5;
 
-                    // The channel experiences the impulse impact + the structural ringing, plus noise
-                    // Note: phase shifts per channel can be added inside the Sin functions above if needed
-                    samples[ch, i] = chGain * (impulse + response) + noise;
+                    double signal =
+                        amplitude * Math.Sin(2 * Math.PI * baseFreq * t + phase)
+                        + 0.5 * Math.Sin(2 * Math.PI * (baseFreq * 3) * t + phase);
+
+                    double noise = (rand.NextDouble() - 0.5) * 2.0 * noiseAmp;
+
+                    samples[ch, i] = signal + noise;
                 }
             }
 
