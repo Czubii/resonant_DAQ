@@ -94,28 +94,23 @@ namespace TestRunner
                 // CSV writer task (consumes SignalWindow stream)
                 var csvTask = Task.Run(async () =>
                 {
-                    await using var writer = new StreamWriter("impulse_output.csv");
-
-                    await writer.WriteLineAsync("time,channel,value");
+                    int counter = 0;
 
                     await foreach (var window in singleShotTrigger.Reader.ReadAllAsync(cts.Token))
                     {
-                        double dt = 1.0 / window.SampleRate;
+                        var analyzer = new ModalAnalyzer();
+                        var result = analyzer.Analyze(window);
 
-                        int samples = window.Samples[0].Length;
+                        string rawPath = $"raw_{counter}.csv";
+                        string fftPath = $"fft_{counter}.csv";
 
-                        for (int i = 0; i < samples; i++)
-                        {
-                            double t = i * dt;
+                        // 1. save raw signal
+                        await WriteRawCsv(rawPath, window);
 
-                            for (int ch = 0; ch < window.NumChannels; ch++)
-                            {
-                                await writer.WriteLineAsync(
-                                    $"{t},{window.AssignedChannelNames[ch]},{window.Samples[ch][i]}");
-                            }
-                        }
+                        // 2. save FFT
+                        await WriteFftCsv(fftPath, result.fft);
 
-                        await writer.FlushAsync();
+                        counter++;
                     }
                 }, cts.Token);
 
@@ -126,6 +121,42 @@ namespace TestRunner
             {
                 cts.Cancel();
                 await signalSource.StopAsync();
+            }
+        }
+
+        static async Task WriteFftCsv(string path, FftFrame fft)
+        {
+            await using var writer = new StreamWriter(path);
+
+            await writer.WriteLineAsync("frequency,channel,magnitude");
+
+            foreach (var ch in fft.Channels)
+            {
+                for (int i = 0; i < fft.Frequencies.Length; i++)
+                {
+                    await writer.WriteLineAsync(
+                        $"{fft.Frequencies[i]},{ch.AssignedChannelName},{ch.Bins[i].Magnitude}");
+                }
+            }
+        }
+        static async Task WriteRawCsv(string path, SignalWindow window)
+        {
+            await using var writer = new StreamWriter(path);
+
+            await writer.WriteLineAsync("time,channel,value");
+
+            double dt = 1.0 / window.SampleRate;
+            int samples = window.Samples[0].Length;
+
+            for (int i = 0; i < samples; i++)
+            {
+                double t = i * dt;
+
+                for (int ch = 0; ch < window.NumChannels; ch++)
+                {
+                    await writer.WriteLineAsync(
+                        $"{t},{window.AssignedChannelNames[ch]},{window.Samples[ch][i]}");
+                }
             }
         }
 

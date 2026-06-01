@@ -16,12 +16,10 @@ namespace CncMeasurement.Processing
         {
             int channels = signalWindow.NumChannels;
 
-            int n = signalWindow.Samples[0].Length;
+            int nRaw = signalWindow.Samples[0].Length;
+            int n = NextPowerOfTwo(nRaw);
 
-            if ((n & (n - 1)) != 0)
-                throw new ArgumentException("FFT size must be a power of 2");
-
-            double[] window = Window.Hann(n);
+            double[] window = Window.Hann(nRaw); // window applied only to real data
 
             int half = n / 2;
 
@@ -39,12 +37,18 @@ namespace CncMeasurement.Processing
             {
                 var buffer = new Complex[n];
 
-                // apply windowing
-                for (int i = 0; i < n; i++)
+                // apply window + copy signal
+                for (int i = 0; i < nRaw; i++)
                 {
                     buffer[i] = new Complex(
                         signalWindow.Samples[ch][i] * window[i],
                         0.0);
+                }
+
+                // zero padding
+                for (int i = nRaw; i < n; i++)
+                {
+                    buffer[i] = Complex.Zero;
                 }
 
                 Fourier.Forward(buffer, FourierOptions.Matlab);
@@ -55,7 +59,7 @@ namespace CncMeasurement.Processing
                 {
                     double mag = buffer[i].Magnitude;
 
-                    mag *= 2.0 / n; // amplitude correction
+                    mag *= 2.0 / n; // amplitude correction based on FFT size
 
                     bins[i] = new FftBin(mag);
                 }
@@ -71,6 +75,13 @@ namespace CncMeasurement.Processing
                 frequencies,
                 signalWindow.TimeStamp,
                 outputChannels);
+        }
+        private static int NextPowerOfTwo(int n) // needed for padding the signal if number of samples is not power of 2 
+        {
+            int p = 1;
+            while (p < n)
+                p <<= 1;
+            return p;
         }
     }
 }
