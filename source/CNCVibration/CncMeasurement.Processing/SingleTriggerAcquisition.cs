@@ -14,7 +14,7 @@ namespace CncMeasurement.Processing
     /// Allows to start the data processing after trigger has been hit. In the buffer stores specified amount of data chunks before trigger, and then
     /// sends forward those chunks + another specified amount of chunks after the trigger evenet. Automatically closes the channel after the data has been collected
     /// </summary>
-    public class SingleTriggerAcquisitionService : Core.Interfaces.ISingleTriggerAcquisitionService
+    public class SingleShotTriggerService : Core.Interfaces.ISingleTriggerAcquisitionService
     {
         private Channel<SignalWindow> _outputChannel = Channel.CreateUnbounded<SignalWindow>();
         public ChannelReader<SignalWindow> Reader => _outputChannel.Reader;
@@ -22,7 +22,7 @@ namespace CncMeasurement.Processing
         private Task _processingTask;
         private CancellationTokenSource _cts;
 
-        public Task Start(ChannelReader<SampleChunk> input, TriggerAcquisitionConfig config, ITriggerDetector trigger, CancellationToken ct = default)
+        public Task Start(ChannelReader<SampleChunk> input, TriggerConfig config, ITriggerDetector trigger, CancellationToken ct = default)
         {
             if (_processingTask != null)
                 throw new Exception("Trigger acquisition already running");
@@ -35,7 +35,7 @@ namespace CncMeasurement.Processing
             return Task.CompletedTask;
         }
 
-        private async Task ProcessingLoop(ChannelReader<SampleChunk> input, TriggerAcquisitionConfig config,
+        private async Task ProcessingLoop(ChannelReader<SampleChunk> input, TriggerConfig config,
             ITriggerDetector trigger, CancellationToken ct)
         {
             int preTriggerSamples = (int)(config.PreTriggerWindowMs * config.SampleRate / 1000);

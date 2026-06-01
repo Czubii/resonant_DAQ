@@ -3,6 +3,7 @@ using CncMeasurement.Core.Interfaces;
 using CncMeasurement.Core.models;
 using CncMeasurement.Hardware;
 using CncMeasurement.Hardware.Acquisition;
+using CncMeasurement.MockHardware;
 using CncMeasurement.Processing;
 using System;
 using System.Collections.Generic;
@@ -18,9 +19,7 @@ namespace TestRunner
     {
         static async Task Main(string[] args)
         {
-            TestDiscovery();
-            var service = new CncMeasurement.MockHardware.SimpleSignalGenerator();
-            await TestAcquisition(service);
+            await ExemplaryImpulseResponsePipeline();
         }
         static void TestDiscovery()
         {
@@ -38,7 +37,97 @@ namespace TestRunner
             }
         }
 
-        static async
+        static async Task ExemplaryImpulseResponsePipeline()
+        {
+            IDataAcquisitionService signalSource = new ImpulseSignalGenerator();
+            var singleShotTrigger = new SingleShotTriggerService();
+            var triggerDetector = new LevelTriggerDetector(22.0);
+
+            var config = new AcquisitionConfig
+            {
+                SampleRate = 10000,
+                ChunkSize = 4096,
+                GroupName = "test",
+                OutputTDMSPath = "tetstoutput.tdms",
+                ChannelConfigs = new List<ChannelConfig>
+                {
+                    new ChannelConfig
+                    {
+                        PhysicalChannelName = "cDAQ1Mod1/ai0",
+                        NameToAssignToChannel = "Accel X",
+                        MinRange = -50,
+                        MaxRange = 50,
+                        Sensitivity = 100,
+                    },
+                    new ChannelConfig
+                    {
+                        PhysicalChannelName = "cDAQ1Mod1/ai1",
+                        NameToAssignToChannel = "Accel Y",
+                        MinRange = -50,
+                        MaxRange = 50,
+                        Sensitivity = 100,
+                    }
+                }
+            };
+            var triggerConfig = new TriggerConfig
+            {
+                SampleRate = config.SampleRate,
+                ChannelConfigs = config.ChannelConfigs,
+                PreTriggerWindowMs = 10,
+                PostTriggerWindowMs = 100
+            };
+
+
+
+            using var cts = new CancellationTokenSource();
+
+            try
+            {
+                await signalSource.Start(config, cts.Token);
+
+                // start trigger pipeline
+                var triggerTask = singleShotTrigger.Start(
+                    signalSource.Reader,
+                    triggerConfig,
+                    triggerDetector);
+
+                // CSV writer task (consumes SignalWindow stream)
+                var csvTask = Task.Run(async () =>
+                {
+                    await using var writer = new StreamWriter("impulse_output.csv");
+
+                    await writer.WriteLineAsync("time,channel,value");
+
+                    await foreach (var window in singleShotTrigger.Reader.ReadAllAsync(cts.Token))
+                    {
+                        double dt = 1.0 / window.SampleRate;
+
+                        int samples = window.Samples[0].Length;
+
+                        for (int i = 0; i < samples; i++)
+                        {
+                            double t = i * dt;
+
+                            for (int ch = 0; ch < window.NumChannels; ch++)
+                            {
+                                await writer.WriteLineAsync(
+                                    $"{t},{window.AssignedChannelNames[ch]},{window.Samples[ch][i]}");
+                            }
+                        }
+
+                        await writer.FlushAsync();
+                    }
+                }, cts.Token);
+
+                await triggerTask;
+                await csvTask;
+            }
+            finally
+            {
+                cts.Cancel();
+                await signalSource.StopAsync();
+            }
+        }
 
         static async Task TestAcquisition(IDataAcquisitionService DAQService)
         {
