@@ -19,7 +19,7 @@ namespace TestRunner
         static async Task Main(string[] args)
         {
             TestDiscovery();
-            var service = new CncMeasurement.MockHardware.MockDataAcquisitionService();
+            var service = new CncMeasurement.MockHardware.SimpleSignalGenerator();
             await TestAcquisition(service);
         }
         static void TestDiscovery()
@@ -37,6 +37,8 @@ namespace TestRunner
                 }
             }
         }
+
+        static async
 
         static async Task TestAcquisition(IDataAcquisitionService DAQService)
         {

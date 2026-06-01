@@ -1,16 +1,16 @@
 ﻿using CncMeasurement.Core.Interfaces;
 using CncMeasurement.Core.models;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Threading.Channels;
-using System.Timers;
+using System.Threading.Tasks;
 
 namespace CncMeasurement.MockHardware
 {
-    /// <summary>
-    /// Used for generating some test data to test the processing and main pipelines. 
-    /// Doesn't generate the tdms output
-    /// </summary>
-    public class MockDataAcquisitionService: IDataAcquisitionService
+    public class ImpulseSignalGenerator : IDataAcquisitionService
     {
         private Channel<SampleChunk> _channel = Channel.CreateUnbounded<SampleChunk>();
         public ChannelReader<SampleChunk> Reader => _channel.Reader;
@@ -100,9 +100,13 @@ namespace CncMeasurement.MockHardware
 
             double dt = 1.0 / config.SampleRate;
 
-            double baseFreq = 500.0;      // Hz
+            double t0 = 2.0;          // impulse time (seconds)
+            double baseFreq = 500.0;  // vibration mode
             double amplitude = 1.0;
             double noiseAmp = 0.02;
+
+            double damping = 6.0;     // exponential decay factor
+            double impulseAmp = 5.0;   // excitation strength
 
             var rand = Random.Shared;
 
@@ -110,18 +114,33 @@ namespace CncMeasurement.MockHardware
             {
                 double t = _time + i * dt;
 
+                // narrow impulse (Gaussian-like spike)
+                double impulse =
+                    impulseAmp *
+                    Math.Exp(-Math.Pow((t - t0) / 0.002, 2)); // ~2 ms width
+
+                // ring-down (only after impulse)
+                double decay = t >= t0
+                    ? Math.Exp(-damping * (t - t0)) *
+                      Math.Sin(2 * Math.PI * baseFreq * (t - t0))
+                    : 0.0;
+
                 for (int ch = 0; ch < channels; ch++)
                 {
-                    // phase shift per channel
                     double phase = ch * 0.5;
 
-                    double signal =
+                    double harmonic =
                         amplitude * Math.Sin(2 * Math.PI * baseFreq * t + phase)
                         + 0.5 * Math.Sin(2 * Math.PI * (baseFreq * 3) * t + phase);
 
-                    double noise = (rand.NextDouble() - 0.5) * 2.0 * noiseAmp;
+                    double noise =
+                        (rand.NextDouble() - 0.5) * 2.0 * noiseAmp;
 
-                    samples[ch, i] = signal + noise;
+                    // channel scaling (simulates structural differences)
+                    double chGain = 1.0 - ch * 0.1;
+
+                    samples[ch, i] =
+                        chGain * (harmonic + decay + impulse) + noise;
                 }
             }
 
