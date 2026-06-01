@@ -100,7 +100,7 @@ namespace CncMeasurement.MockHardware
 
             double dt = 1.0 / config.SampleRate;
 
-            double t0 = 20.0;          // impulse time (seconds)
+            double t0 = 2.0;          // impulse time (seconds)
             double baseFreq = 500.0;  // vibration mode
             double amplitude = 20;
             double noiseAmp = 0.02;
