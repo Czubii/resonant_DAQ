@@ -18,18 +18,17 @@ namespace CncMeasurement.Processing
         /// <param name="window"></param>
         /// <param name="skipFirstN"></param>
         /// <returns></returns>
-        public static double[] Compute(SignalWindow window, double dominantFrequency, int skipFirstN)
+        public static double[] Compute(SignalFrame window, double[] dominantFrequencies, int skipFirstN)
         {
 
-            PrintPeaks(window, 0);
-            int nChannels = window.NumChannels;
+            int nChannels = window.Channels.Length;
             double dt = 1.0 / window.SampleRate;
 
             var output = new double[nChannels];
 
             for (int ch = 0; ch < nChannels; ch++)
             {
-                var envelope = AbsEnvelope(window.Samples[ch], dt);
+                var envelope = AbsEnvelope(window.Channels[ch].Samples, dt);
                 var usable = envelope.Skip(skipFirstN).ToList(); // skipping first n peaks
 
                 if (usable.Count < 2)
@@ -54,7 +53,7 @@ namespace CncMeasurement.Processing
 
                 double slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
                 double alpha = -slope;
-                double omegaN = 2.0 * Math.PI * dominantFrequency;
+                double omegaN = 2.0 * Math.PI * dominantFrequencies[ch];
                 double dampingRatio = alpha / omegaN;
 
                 output[ch] = dampingRatio;
@@ -62,25 +61,6 @@ namespace CncMeasurement.Processing
 
             return output;
         }
-
-        private static void PrintPeaks(SignalWindow window, int channelToInspect)
-        {
-            double dt = 1.0 / window.SampleRate;
-            double[] samples = window.Samples[channelToInspect];
-
-            var envelope = AbsEnvelope(samples, dt);
-
-            if (envelope.Count == 0)
-                throw new InvalidOperationException("No peaks detected in signal.");
-
-            // PRINT PEAKS (for debugging / validation)
-            Console.WriteLine("Detected peaks (time, amplitude):");
-            foreach (var p in envelope)
-            {
-                Console.WriteLine($"{p.x:F6}s  |  {p.y:F6}");
-            }
-        }
-
         /// <summary>
         /// computes points describing the envelope of absolute value of function
         /// desribed by set of equaly spaced points

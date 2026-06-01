@@ -108,34 +108,47 @@ namespace CncMeasurement.Core.models
             DateTime TimeStamp, //Start of the Chunk
             double[,] Samples
         );
-        public sealed record SignalWindow // Used for measurement transport between windowing/trigger layers and processing
-        (
-            long SampleIndex,
-            int NumChannels,
-            string[] AssignedChannelNames,
-            double SampleRate,
-            DateTime TimeStamp, //Start of the window
-            double[][] Samples
-        );
-    public sealed record RmsFrame
-        (
-            long SampleIndex,
-            DateTime Timestamp, //Start of the window
-            RmsChannel[] Channels
-        );
-        public sealed record RmsChannel
-        (
-            string AssignedChannelName,
-            double Value
-        );
 
-        public sealed record FftBin
+
+    public sealed record SignalChannel
+    (
+       string AssignedChannelName,
+       double[] Samples
+    );
+    public sealed record SignalFrame // Used for measurement transport between windowing/trigger layers and processing
+    (
+        long SampleIndex,
+        double SampleRate,
+        DateTime TimeStamp, //Start of the window
+        SignalChannel[] Channels
+    );
+
+
+
+    public sealed record RmsFrame
+    (
+        long SampleIndex,
+        DateTime Timestamp, //Start of the window
+        RmsChannel[] Channels
+    );
+    public sealed record RmsChannel
+    (
+        string AssignedChannelName,
+        double Value
+    );
+
+
+
+
+    public sealed record FftBin
         (
             double Magnitude
         );
         public sealed record FftChannel
         (
             string AssignedChannelName,
+            double ResonantFrequency,
+            double PeakAmplitude,
             FftBin[] Bins
         );
         public sealed record FftFrame
@@ -146,6 +159,9 @@ namespace CncMeasurement.Core.models
             DateTime TimeStamp, //Start of the window
             FftChannel[] Channels
         );
+
+
+
         public record PostProcessingResult
         {
         float RPM;

@@ -16,8 +16,8 @@ namespace CncMeasurement.Processing
     /// </summary>
     public class SingleShotTriggerService : Core.Interfaces.ISingleTriggerAcquisitionService
     {
-        private Channel<SignalWindow> _outputChannel = Channel.CreateUnbounded<SignalWindow>();
-        public ChannelReader<SignalWindow> Reader => _outputChannel.Reader;
+        private Channel<SignalFrame> _outputChannel = Channel.CreateUnbounded<SignalFrame>();
+        public ChannelReader<SignalFrame> Reader => _outputChannel.Reader;
 
         private Task _processingTask;
         private CancellationTokenSource _cts;
@@ -36,62 +36,60 @@ namespace CncMeasurement.Processing
         }
 
         private async Task ProcessingLoop(ChannelReader<SampleChunk> input, TriggerConfig config,
-            ITriggerDetector trigger, CancellationToken ct)
+     ITriggerDetector trigger, CancellationToken ct)
         {
             int preTriggerSamples = (int)(config.PreTriggerWindowMs * config.SampleRate / 1000);
             int postTriggerSamples = (int)(config.PostTriggerWindowMs * config.SampleRate / 1000);
-
             int totalSamples = preTriggerSamples + postTriggerSamples;
 
             var preBuffer = new CircularBuffer<double[]>(preTriggerSamples);
 
             bool triggered = false;
-
             double[][] measurement = null!;
             int writeIndex = 0;
             int numChannels = 0;
 
             DateTime outputWindowStartTime = DateTime.UtcNow;
             long outputWindowStartIndex = 0;
+
+            double[] samplesPerChannel = null!;
+
             try
             {
                 await foreach (var chunk in input.ReadAllAsync(ct))
                 {
-                    numChannels = chunk.NumChannels;
+                    if (numChannels == 0)
+                    {
+                        numChannels = chunk.NumChannels;
+                        samplesPerChannel = new double[numChannels]; // Delayed initialization
+                    }
 
                     for (int i = 0; i < chunk.NumSamples; i++)
                     {
                         ct.ThrowIfCancellationRequested();
 
-                        var samplesPerChannel = new double[numChannels];
-
                         for (int ch = 0; ch < numChannels; ch++)
                         {
                             samplesPerChannel[ch] = chunk.Samples[ch, i];
                         }
-                        
-                        // Capture pre trigger samples + trigger detection:
+
+                        // --- CASE 1: Searching for Trigger ---
                         if (!triggered)
                         {
-                            preBuffer.Add(samplesPerChannel);
+                            preBuffer.Add((double[])samplesPerChannel.Clone());
 
-                            if (trigger.IsTriggered(samplesPerChannel)) // The indentation here is kinda impressive
+                            if (trigger.IsTriggered(samplesPerChannel))
                             {
                                 triggered = true;
-
-                                // Compute the metadata for the output:
 
                                 int triggerGlobalIndex = (int)(chunk.SampleIndex + i);
                                 outputWindowStartIndex = triggerGlobalIndex - preTriggerSamples;
 
                                 var triggerTime = chunk.TimeStamp.AddSeconds((double)i / chunk.SampleRate);
-
                                 outputWindowStartTime = triggerTime.AddSeconds(-preTriggerSamples / chunk.SampleRate);
 
-
-                                // prepare the output array:
+                                // Prepare output structure
                                 measurement = new double[numChannels][];
-
                                 for (int ch = 0; ch < numChannels; ch++)
                                 {
                                     measurement[ch] = new double[totalSamples];
@@ -99,47 +97,46 @@ namespace CncMeasurement.Processing
 
                                 var preSamples = preBuffer.ToArray();
 
-                                int start = Math.Max(0, preSamples.Length - preTriggerSamples);
-
-                                // copy the buffer into output measurement array
-                                for (int sampleIdx = start; sampleIdx < preSamples.Length; sampleIdx++)
+                                for (int sampleIdx = 0; sampleIdx < preSamples.Length; sampleIdx++)
                                 {
                                     var sample = preSamples[sampleIdx];
-
                                     for (int ch = 0; ch < numChannels; ch++)
                                     {
                                         measurement[ch][writeIndex] = sample[ch];
                                     }
-
                                     writeIndex++;
                                 }
                             }
-
                             continue;
                         }
 
-                        // Capture post-trigger samples
-
+                        // --- CASE 2: Capturing Post-Trigger Data ---
                         for (int ch = 0; ch < numChannels; ch++)
                         {
                             measurement[ch][writeIndex] = samplesPerChannel[ch];
                         }
-
                         writeIndex++;
 
+                        // Frame complete check
                         if (writeIndex >= totalSamples)
                         {
-                            await _outputChannel.Writer.WriteAsync(
-                                new SignalWindow
-                                (
-                                    outputWindowStartIndex,
-                                    measurement.Length,
-                                    config.ChannelConfigs.Select(a => a.NameToAssignToChannel).ToArray(),
-                                    config.SampleRate,
-                                    outputWindowStartTime,
-                                    measurement
-                                ),ct);
+                            var channels = new SignalChannel[numChannels];
+                            for (int ch = 0; ch < numChannels; ch++)
+                            {
+                                channels[ch] = new SignalChannel(
+                                    config.ChannelConfigs[ch].NameToAssignToChannel,
+                                    measurement[ch]
+                                );
+                            }
 
+                            await _outputChannel.Writer.WriteAsync(new SignalFrame(
+                                outputWindowStartIndex,
+                                config.SampleRate,
+                                outputWindowStartTime,
+                                channels
+                            ), ct);
+
+                            // Exits the loop and terminates the method after 1 full capture window.
                             return;
                         }
                     }
@@ -148,6 +145,7 @@ namespace CncMeasurement.Processing
             catch (Exception ex)
             {
                 _outputChannel.Writer.TryComplete(ex);
+                throw; 
             }
             finally
             {

@@ -68,6 +68,6 @@ namespace CncMeasurement.Core.Interfaces
     {
         public Task Start(ChannelReader<SampleChunk> input, TriggerConfig config, ITriggerDetector trigger, CancellationToken ct = default);
         public Task StopAsync();
-        public ChannelReader<SignalWindow> Reader { get; }
+        public ChannelReader<SignalFrame> Reader { get; }
     }
 }
