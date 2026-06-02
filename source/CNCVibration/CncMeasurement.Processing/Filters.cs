@@ -23,8 +23,7 @@ namespace CncMeasurement.Processing
 
             double standardDev = bandwidthHz / 2.355; // i love statistics and those "random" numbers
 
-            double[] window = Window.Hann(nSamples); // window applied to real data
-            var buffer = FFTProcessor.GenerateFFTBuffer(input,nSamples,nSamples, window);
+            var buffer = FFTProcessor.GenerateFFTBuffer(input,nSamples,nSamples);
 
             Fourier.Forward(buffer, FourierOptions.Matlab);
 
