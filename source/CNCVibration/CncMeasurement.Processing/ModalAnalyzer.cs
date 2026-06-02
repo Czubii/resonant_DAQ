@@ -9,20 +9,21 @@ using System.Threading.Tasks;
 namespace CncMeasurement.Processing
 {
 
-    public sealed record ModalChannelObservation
-    (
-        string AssignedChannelName,
-
-        double AmplitudeAtMode,
-        double PhaseAtMode,        // optional but very valuable
-
-        double DampingContribution // optional (usually shared anyway)
-    );
-    public sealed record ModalResults
-    (
+    public sealed record ModalResults(
         long SampleIndex,
-        DateTime TimeStamp,
-        ModalResultsChannel[] Channels
+        DateTime TimeStampUtc,
+        double SampleRate,
+        ModalMode[] Modes
+    );
+    public sealed record ModalMode(
+        double FrequencyHz,
+        ModalChannelResult[] Channels
+    );
+
+    public sealed record ModalChannelResult
+    (
+        string ChannelName,
+        double SpectrumAmplitude
     );
     public class ModalAnalyzer
     {
@@ -34,30 +35,18 @@ namespace CncMeasurement.Processing
             var resonantFrequencies = resonances.Select(a => a.ResonantFrequencyHz).ToArray();
             var peakAmplitudes = resonances.Select(a=>a.PeakAmplitude).ToArray();
 
-            var dampingRatios = DampingEstimator.Compute(signalWindow, resonantFrequencies, 10);
+            var dampingRatios = DampingEstimator.Compute(signalWindow, resonantFrequencies, 5);
 
-            var resultsChannels = new ModalResultsChannel[nChannels];
 
             for (int ch = 0; ch < nChannels; ch++)
             {
-                resultsChannels[ch] = new ModalResultsChannel
-                (
-                    signalWindow.Channels[ch].AssignedChannelName,
-
-                    resonantFrequencies[ch],
-                    peakAmplitudes[ch],
-
-                    dampingRatios[ch]
-
-                );
                 Console.WriteLine($"Channel {signalWindow.Channels[ch].AssignedChannelName} | Damping Ratio: {dampingRatios[ch]}");
             } 
 
             return new ModalResults
             (
                 signalWindow.SampleIndex,
-                signalWindow.TimeStamp,
-                resultsChannels
+                signalWindow.TimeStamp
             );
         }
     }
