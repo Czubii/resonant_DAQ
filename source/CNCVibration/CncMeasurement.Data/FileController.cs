@@ -48,13 +48,13 @@ namespace CncMeasurement.Data
 
             await foreach (var frame in FFTreader.ReadAllAsync())
             {
-                int half = frame.Frequencies.Length;
+                int half = frame.FrequenciesHz.Length;
                 foreach (var ch in frame.Channels)
                 {
                     for (int i = 0; i < half; i++)
                     {
                         await _fftwriter.WriteLineAsync(
-                            $"{frame.TimeStamp:o},{frame.SampleIndex},{ch.AssignedChannelName},{frame.Frequencies[i]},{ch.Magnitudes[i].Magnitude}");
+                            $"{frame.TimeStamp:o},{frame.SampleIndex},{ch.AssignedChannelName},{frame.FrequenciesHz[i]},{ch.Magnitudes[i].Magnitude}");
                     }
                 }
             }
