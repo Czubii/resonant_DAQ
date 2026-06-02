@@ -1,9 +1,5 @@
-﻿using CncMeasurement.Core.models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿
+using CncMeasurement.Core.models;
 
 namespace CncMeasurement.MockHardware
 {
@@ -11,94 +7,88 @@ namespace CncMeasurement.MockHardware
     {
         private double _time;
 
-        // Simple mode definition (you can extend with more realism later)
+        // Persisted across chunks (fixes discontinuities)
+        private double[]? _lpState;
+        private double[]? _lpAlpha;
+        private int _lpChannelCount;
+        private double _lpSampleRate;
+
+        // Persisted across chunks (fixes random changes between chunks)
+        private double[,]? _participation;
+        private int _partChannelCount;
+        private int _partModeCount;
+
+        // Optional: stable RNG for repeatability (instead of Random.Shared)
+        private readonly Random _rand = new Random(12345);
+
         public sealed record Mode(
-            double FnHz,              // natural frequency
-            double DampingRatio,      // zeta (e.g. 0.01 = 1%)
-            double ModalAmplitude,    // base amplitude scale
+            double FnHz,              // natural frequency (Hz)
+            double DampingRatio,      // zeta (0..1), typical 0.002..0.05
+            double ModalAmplitude,    // amplitude scale
             double PhaseRad = 0.0     // phase at impact
         );
 
         public sealed record ChannelModel(
             double Gain = 1.0,
-            double DelaySeconds = 0.0,      // time-of-flight / arrival delay
-            double NoiseStd = 0.02,         // white noise std dev
-            double DcOffset = 0.0,          // sensor bias
-            double DriftPerSecond = 0.0,    // slow drift
-            double LowpassHz = 0.0          // 0 = disabled
+            double DelaySeconds = 0.0,
+            double NoiseStd = 0.02,
+            double DcOffset = 0.0,
+            double DriftPerSecond = 0.0,
+            double LowpassHz = 0.0    // 0 = disabled
         );
 
         /// <summary>
-        /// Generate multi-channel impact test data.
-        /// Realism knobs:
-        /// - multiple modes with damping ratio ζ
-        /// - per-channel modal participation factors
-        /// - arrival delays
-        /// - DC offsets + drift + noise
-        /// - optional per-channel low-pass bandwidth
+        /// Generates one chunk of multi-channel impact response.
+        /// Important: This generator is stateful. Keep the same instance to get continuous time-series.
         /// </summary>
         public double[,] GenerateWaveform(
             AcquisitionConfig config,
-            double impactTimeSeconds = 2.0,
-            double impactWidthSeconds = 0.0008,   // contact duration scale (smaller => sharper)
+            double impactTimeSeconds = 2.0,        // absolute time in generator timeline
+            double impactWidthSeconds = 0.0008,    // gaussian sigma-ish
             double impactAmplitude = 20.0,
             IReadOnlyList<Mode>? modes = null,
             IReadOnlyList<ChannelModel>? channels = null,
-            double crossTalk = 0.03               // 0..0.2 typical; small sensor coupling
+            double crossTalk = 0.03
         )
         {
             int channelCount = config.ChannelConfigs.Count;
             int count = config.ChunkSize;
 
             double[,] samples = new double[channelCount, count];
-            double dt = 1.0 / config.SampleRate;
+            double sampleRate = config.SampleRate;
+            double dt = 1.0 / sampleRate;
 
-            // Default modes: adjust to your structure (example: a few resonances)
             modes ??= new[]
             {
-            new Mode(FnHz: 180, DampingRatio: 0.015, ModalAmplitude: 10, PhaseRad: 0.2),
-            new Mode(FnHz: 520, DampingRatio: 0.010, ModalAmplitude: 18, PhaseRad: 0.0),
-            new Mode(FnHz: 950, DampingRatio: 0.020, ModalAmplitude: 7,  PhaseRad: -0.3),
-            new Mode(FnHz: 1450,DampingRatio: 0.030, ModalAmplitude: 3,  PhaseRad: 0.7),
-        };
+                new Mode(FnHz: 180,  DampingRatio: 0.015, ModalAmplitude: 10, PhaseRad: 0.2),
+                new Mode(FnHz: 520,  DampingRatio: 0.5, ModalAmplitude: 18, PhaseRad: 0.0),
+                new Mode(FnHz: 950,  DampingRatio: 0.020, ModalAmplitude: 7,  PhaseRad: -0.3),
+                new Mode(FnHz: 1450, DampingRatio: 0.030, ModalAmplitude: 3,  PhaseRad: 0.7),
+            };
 
-            // Default channel models
             channels ??= BuildDefaultChannels(channelCount);
 
-            // Per-channel modal participation factors (how strongly each mode shows up on each sensor)
-            // This is a big part of "different channels look different".
-            double[,] participation = BuildParticipation(channelCount, modes.Count);
-
-            // Optional: per-channel one-pole lowpass state
-            var lpState = new double[channelCount];
-            var lpAlpha = new double[channelCount];
-            for (int ch = 0; ch < channelCount; ch++)
-            {
-                double fc = channels[ch].LowpassHz;
-                lpAlpha[ch] = (fc > 0) ? OnePoleLowpassAlpha(fc, dt) : 0.0;
-            }
-
-            var rand = Random.Shared;
+            EnsureLowpassState(channelCount, sampleRate, channels, dt);
+            EnsureParticipation(channelCount, modes.Count);
 
             // Generate
             for (int i = 0; i < count; i++)
             {
                 double t = _time + i * dt;
 
-                // Impact force-ish input (Gaussian-like contact pulse).
-                // Real impact pulses are not perfect Gaussians; this is a reasonable approximation.
-                double impact = impactAmplitude * GaussianPulse(t, impactTimeSeconds, impactWidthSeconds);
-
-                // For each channel: apply delay, modal response, sensor effects
+                // Channel loop
                 for (int ch = 0; ch < channelCount; ch++)
                 {
                     var chModel = channels[ch];
+
+                    // Apply arrival delay (time-of-flight)
                     double tc = t - chModel.DelaySeconds;
 
-                    // Channel-specific impact arrival
-                    double impactCh = impactAmplitude * chModel.Gain * GaussianPulse(tc, impactTimeSeconds, impactWidthSeconds);
+                    // Impact (gaussian pulse)
+                    double impact = impactAmplitude * chModel.Gain *
+                                    GaussianPulse(tc, impactTimeSeconds, impactWidthSeconds);
 
-                    // Modal ring-down starts at impact time (per channel arrival)
+                    // Modal ringdown
                     double ringdown = 0.0;
                     if (tc >= impactTimeSeconds)
                     {
@@ -108,38 +98,38 @@ namespace CncMeasurement.MockHardware
                         {
                             var mode = modes[m];
 
-                            // Guard against invalid damping ratios
+                            // Clamp damping ratio to valid underdamped range
                             double zeta = Math.Clamp(mode.DampingRatio, 0.0001, 0.99);
 
                             double wn = 2.0 * Math.PI * mode.FnHz;
                             double wd = wn * Math.Sqrt(1.0 - zeta * zeta);
+
+                            // envelope decay: exp(-zeta*wn*t)
                             double envelope = Math.Exp(-zeta * wn * dT);
 
-                            // Channel sees this mode scaled by participation factor
-                            double A = mode.ModalAmplitude * participation[ch, m];
+                            double A = mode.ModalAmplitude * _participation![ch, m];
 
                             ringdown += A * envelope * Math.Sin(wd * dT + mode.PhaseRad);
                         }
                     }
 
-                    // Bias/drift/noise
+                    // Sensor bias/drift/noise
                     double drift = chModel.DriftPerSecond * t;
-                    double noise = NextGaussian(rand) * chModel.NoiseStd;
+                    double noise = NextGaussian(_rand) * chModel.NoiseStd;
 
-                    double x = impactCh + ringdown + chModel.DcOffset + drift + noise;
+                    double x = impact + ringdown + chModel.DcOffset + drift + noise;
 
-                    // Optional sensor bandwidth (low-pass)
+                    // Optional bandwidth limit (one-pole low-pass) -- STATEFUL across chunks
                     if (chModel.LowpassHz > 0)
                     {
-                        // y[n] = y[n-1] + alpha*(x - y[n-1])
-                        lpState[ch] = lpState[ch] + lpAlpha[ch] * (x - lpState[ch]);
-                        x = lpState[ch];
+                        _lpState![ch] = _lpState[ch] + _lpAlpha![ch] * (x - _lpState[ch]);
+                        x = _lpState[ch];
                     }
 
                     samples[ch, i] = x;
                 }
 
-                // Small cross-talk mixing: each channel leaks a bit of the mean of the others
+                // Cross-talk mixing (small)
                 if (crossTalk > 0)
                 {
                     double mean = 0.0;
@@ -156,25 +146,71 @@ namespace CncMeasurement.MockHardware
             return samples;
         }
 
-        private static IReadOnlyList<ChannelModel> BuildDefaultChannels(int channelCount)
+        /// <summary>
+        /// Resets the generator timeline and internal filter state.
+        /// Call this when starting a new run.
+        /// </summary>
+        public void Reset(double startTimeSeconds = 0.0)
+        {
+            _time = startTimeSeconds;
+
+            if (_lpState != null)
+                Array.Clear(_lpState, 0, _lpState.Length);
+
+            // Participation intentionally NOT cleared (structure doesn't change).
+            // If you want new random participation between runs, set _participation = null here.
+        }
+
+        private void EnsureLowpassState(
+            int channelCount,
+            double sampleRate,
+            IReadOnlyList<ChannelModel> channels,
+            double dt)
+        {
+            if (_lpState == null || _lpAlpha == null ||
+                _lpChannelCount != channelCount || _lpSampleRate != sampleRate)
+            {
+                _lpState = new double[channelCount];
+                _lpAlpha = new double[channelCount];
+                _lpChannelCount = channelCount;
+                _lpSampleRate = sampleRate;
+            }
+
+            for (int ch = 0; ch < channelCount; ch++)
+            {
+                double fc = channels[ch].LowpassHz;
+                _lpAlpha![ch] = (fc > 0) ? OnePoleLowpassAlpha(fc, dt) : 0.0;
+            }
+        }
+
+        private void EnsureParticipation(int channelCount, int modeCount)
+        {
+            if (_participation != null &&
+                _partChannelCount == channelCount &&
+                _partModeCount == modeCount)
+            {
+                return;
+            }
+
+            _participation = BuildParticipation(channelCount, modeCount);
+            _partChannelCount = channelCount;
+            _partModeCount = modeCount;
+        }
+
+        private IReadOnlyList<ChannelModel> BuildDefaultChannels(int channelCount)
         {
             var list = new ChannelModel[channelCount];
 
-            // Example: sensors at different distances / mount stiffness
             for (int ch = 0; ch < channelCount; ch++)
             {
                 double gain = 1.0 - 0.08 * ch;
-
-                // A few hundred microseconds delay differences can matter at kHz modes
                 double delay = ch * 120e-6;
 
                 double noise = 0.015 + 0.005 * ch;
-                double offset = (ch - (channelCount - 1) / 2.0) * 0.01; // small bias spread
-                double drift = (ch % 2 == 0 ? 1 : -1) * 0.001;          // tiny drift
+                double offset = (ch - (channelCount - 1) / 2.0) * 0.01;
+                double drift = (ch % 2 == 0 ? 1 : -1) * 0.001;
 
-                // If you're simulating accelerometers, a bandwidth limit is realistic
-                // (set to 0 to disable)
-                double lowpass = 5000; // Hz
+                double lowpass = 5000; // Hz; set to 0 to disable
 
                 list[ch] = new ChannelModel(
                     Gain: gain,
@@ -189,38 +225,35 @@ namespace CncMeasurement.MockHardware
             return list;
         }
 
-        private static double[,] BuildParticipation(int channelCount, int modeCount)
+        private double[,] BuildParticipation(int channelCount, int modeCount)
         {
-            var rand = Random.Shared;
+            // Stable participation (uses this._rand)
             var p = new double[channelCount, modeCount];
 
-            // Participation: positive/negative signs + different magnitudes per sensor.
-            // This approximates mode shapes (some sensors near nodes see less, some see more).
             for (int ch = 0; ch < channelCount; ch++)
             {
                 for (int m = 0; m < modeCount; m++)
                 {
-                    // Base 0.3..1.2
-                    double mag = 0.3 + 0.9 * rand.NextDouble();
-
-                    // Alternate sign patterns across channels/modes
+                    double mag = 0.3 + 0.9 * _rand.NextDouble();
                     double sign = ((ch + 2 * m) % 3 == 0) ? -1.0 : 1.0;
-
                     p[ch, m] = sign * mag;
                 }
             }
 
-            // Normalize per channel so amplitudes don't explode when modeCount grows
+            // Normalize per channel
             for (int ch = 0; ch < channelCount; ch++)
             {
                 double rms = 0.0;
-                for (int m = 0; m < modeCount; m++) rms += p[ch, m] * p[ch, m];
-                rms = Math.Sqrt(rms / modeCount);
+                for (int m = 0; m < modeCount; m++)
+                    rms += p[ch, m] * p[ch, m];
 
-                double target = 0.9; // desired RMS participation
+                rms = Math.Sqrt(rms / Math.Max(1, modeCount));
+
+                double target = 0.9;
                 double scale = target / Math.Max(rms, 1e-9);
 
-                for (int m = 0; m < modeCount; m++) p[ch, m] *= scale;
+                for (int m = 0; m < modeCount; m++)
+                    p[ch, m] *= scale;
             }
 
             return p;
@@ -228,21 +261,20 @@ namespace CncMeasurement.MockHardware
 
         private static double GaussianPulse(double t, double t0, double widthSeconds)
         {
-            // widthSeconds is like sigma
-            double x = (t - t0) / Math.Max(widthSeconds, 1e-9);
+            double sigma = Math.Max(widthSeconds, 1e-12);
+            double x = (t - t0) / sigma;
             return Math.Exp(-(x * x));
         }
 
         private static double OnePoleLowpassAlpha(double cutoffHz, double dt)
         {
-            // RC lowpass: alpha = dt / (RC + dt), RC = 1/(2πfc)
             double rc = 1.0 / (2.0 * Math.PI * cutoffHz);
             return dt / (rc + dt);
         }
 
-        // Box-Muller: standard normal
         private static double NextGaussian(Random rand)
         {
+            // Box-Muller
             double u1 = Math.Max(rand.NextDouble(), 1e-12);
             double u2 = rand.NextDouble();
             return Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Cos(2.0 * Math.PI * u2);

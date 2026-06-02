@@ -130,7 +130,7 @@ namespace CncMeasurement.Processing
 
                 // Extracting magnitudes:
 
-                var bins = new FftBin[half];
+                var bins = new double[half];
 
                 for (int i = 0; i < half; i++)
                 {
@@ -138,7 +138,7 @@ namespace CncMeasurement.Processing
 
                     mag *= 2.0 / n; // amplitud correction
 
-                    bins[i] = new FftBin(mag);
+                    bins[i] = mag;
                 }
 
                 outputChannels[ch] = new FftChannel(chunk.AssignedChannelNames[ch], bins);

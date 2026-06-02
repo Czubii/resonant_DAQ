@@ -41,7 +41,7 @@ namespace TestRunner
         {
             IDataAcquisitionService signalSource = new ModalAcquisitionService();
             var singleShotTrigger = new SingleShotTriggerService();
-            var triggerDetector = new LevelTriggerDetector(22.0);
+            var triggerDetector = new LevelTriggerDetector(10.0);
 
             var config = new AcquisitionConfig
             {
@@ -73,8 +73,8 @@ namespace TestRunner
             {
                 SampleRate = config.SampleRate,
                 ChannelConfigs = config.ChannelConfigs,
-                PreTriggerWindowMs = 1,
-                PostTriggerWindowMs = 100
+                PreTriggerWindowMs = 2,
+                PostTriggerWindowMs = 200
             };
 
 
@@ -99,7 +99,8 @@ namespace TestRunner
                     await foreach (var window in singleShotTrigger.Reader.ReadAllAsync(cts.Token))
                     {
                         var analyzer = new ModalAnalyzer();
-                        var result = analyzer.Analyze(window);
+                        var spectrum = FFTSpectrum.Compute(window);
+                        var result = analyzer.Analyze(window, spectrum);
 
                         string rawPath = $"raw_{counter}.csv";
                         string fftPath = $"fft_{counter}.csv";
@@ -108,7 +109,7 @@ namespace TestRunner
                         await WriteRawCsv(rawPath, window);
 
                         // 2. save FFT
-                        await WriteFftCsv(fftPath, result.fft);
+                        await WriteFftCsv(fftPath, spectrum);
 
                         counter++;
                     }
@@ -132,10 +133,10 @@ namespace TestRunner
 
             foreach (var ch in fft.Channels)
             {
-                for (int i = 0; i < fft.Frequencies.Length; i++)
+                for (int i = 0; i < fft.FrequenciesHz.Length; i++)
                 {
                     await writer.WriteLineAsync(
-                        $"{fft.Frequencies[i]},{ch.AssignedChannelName},{ch.Magnitudes[i].Magnitude}");
+                        $"{fft.FrequenciesHz[i]},{ch.AssignedChannelName},{ch.Magnitudes[i]}");
                 }
             }
         }
@@ -315,14 +316,14 @@ namespace TestRunner
 
         public async Task WriteAsync(FftFrame frame)
         {
-            int half = frame.Frequencies.Length;
+            int half = frame.FrequenciesHz.Length;
 
             foreach (var ch in frame.Channels)
             {
                 for (int i = 0; i < half; i++)
                 {
                     await _writer.WriteLineAsync(
-                        $"{frame.TimeStamp:o},{frame.SampleIndex},{ch.AssignedChannelName},{frame.Frequencies[i]},{ch.Magnitudes[i].Magnitude}");
+                        $"{frame.TimeStamp:o},{frame.SampleIndex},{ch.AssignedChannelName},{frame.FrequenciesHz[i]},{ch.Magnitudes[i]}");
                 }
             }
         }
