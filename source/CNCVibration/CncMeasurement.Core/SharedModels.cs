@@ -112,7 +112,7 @@ namespace CncMeasurement.Core.models
     public sealed record SignalFrame // Used for measurement transport between windowing/trigger layers and processing
     (
         long SampleIndex,
-        double SampleRate,
+        double SampleRateHz,
         DateTime TimeStamp, //Start of the window
         SignalChannel[] Channels
     );

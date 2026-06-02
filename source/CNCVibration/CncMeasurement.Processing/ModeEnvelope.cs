@@ -13,25 +13,17 @@ namespace CncMeasurement.Processing
     /// </summary>
     public class ModeEnvelope()
     {
-        public double[] Extract(double[] input, double sampleRateHz, double CenterFrequencyHz, double bandwidthHz)
+        public static double[] Extract(double[] input, double sampleRateHz, double CenterFrequencyHz, double bandwidthHz)
         {
             int nSamples = input.Length;
-            double[] output = new double[nSamples];
-            Complex[] buffer = new Complex[nSamples];
 
             double standardDev = bandwidthHz / 2.355; // i love statistics and those "random" numbers
 
-            for (int i = 0; i < nSamples; i++)
-            {
-                double w =
-                    0.5 - 0.5 * Math.Cos(2.0 * Math.PI * i / (nSamples - 1));
-
-                buffer[i] = new Complex(input[i] * w, 0.0); // copy to buffer and apply Hann windowing
-            }
+            var buffer = FFTProcessor.GenerateFFTBuffer(input, nSamples, nSamples);
 
             Fourier.Forward(buffer, FourierOptions.Matlab);
 
-            // apply the filtering:
+            // Gauusian band-pass:
             for (int k = 0; k < nSamples; k++)
             {
                 double frequ = 0.0;
@@ -52,15 +44,36 @@ namespace CncMeasurement.Processing
             }
 
 
-            // finally reconstruct the (now filtered) signal
+            // Hilbert transform in frequency domain:
+            if ((nSamples & 1) == 0) // even
+            {
+                for (int k = 1; k < nSamples / 2; k++)
+                    buffer[k] *= 2.0;
+
+                for (int k = nSamples / 2 + 1; k < nSamples; k++)
+                    buffer[k] = Complex.Zero;
+            }
+            else // odd
+            {
+                for (int k = 1; k <= (nSamples - 1) / 2; k++)
+                    buffer[k] *= 2.0;
+
+                for (int k = (nSamples + 1) / 2; k < nSamples; k++)
+                    buffer[k] = Complex.Zero;
+            }
+
+            
             Fourier.Inverse(buffer, FourierOptions.Matlab);
+
+            // finally we can extract the envelope:
+            double[] envelope = new double[nSamples];
 
             for (int i = 0; i < nSamples; i++)
             {
-                output[i] = buffer[i].Real;
+                envelope[i] = buffer[i].Magnitude;
             }
 
-            return output;
+            return envelope;
         }
     }
 }

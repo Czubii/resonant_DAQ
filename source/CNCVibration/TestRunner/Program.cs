@@ -73,8 +73,8 @@ namespace TestRunner
             {
                 SampleRate = config.SampleRate,
                 ChannelConfigs = config.ChannelConfigs,
-                PreTriggerWindowMs = 80,
-                PostTriggerWindowMs = 80
+                PreTriggerWindowMs = 50,
+                PostTriggerWindowMs = 200
             };
 
 
@@ -146,7 +146,7 @@ namespace TestRunner
 
             await writer.WriteLineAsync("time,channel,value");
 
-            double dt = 1.0 / window.SampleRate;
+            double dt = 1.0 / window.SampleRateHz;
             int samples = window.Channels[0].Samples.Length;
 
             for (int i = 0; i < samples; i++)

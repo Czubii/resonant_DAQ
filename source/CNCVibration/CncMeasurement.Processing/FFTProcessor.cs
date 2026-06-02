@@ -98,12 +98,12 @@ namespace CncMeasurement.Processing
 
             double[] window = Window.Hann(nRaw); // window applied to real data
 
-            double psdScaling = PSDCorrection(window, nRaw, signalWindow.SampleRate);
+            double psdScaling = PSDCorrection(window, nRaw, signalWindow.SampleRateHz);
             double magScaling = MagnitudeCorrection(window, nRaw);
 
             int nBins = n / 2 + 1; // We only want the positive frequencies, and also lets keep the dc and nyquist
 
-            double[] frequencies = GenerateFrequencyBins(nBins, n, signalWindow.SampleRate);
+            double[] frequencies = GenerateFrequencyBins(nBins, n, signalWindow.SampleRateHz);
 
             var outputChannels = new FftChannel[channels];
 

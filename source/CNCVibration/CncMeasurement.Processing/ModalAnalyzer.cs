@@ -24,24 +24,31 @@ namespace CncMeasurement.Processing
     (
         string AssignedChannelName,
         double PsdAtMode,
-        double FftMagnitudeAtMode
+        double FftMagnitudeAtMode,
+        double DampingRate,
+        double DampingRegressionQuality
+
     );
 
     public class ModalAnalysisConfig
     {
         public double ModeProminenceThresholddB;
         public double DampingFilterBandwidthPercent;
+        public int DampingSkipNAfterPeak;
     }
     public class ModalAnalyzer
     {
         public void Analyze(SignalFrame signalWindow, FftFrame fftSpectra)
         {
+            
+
             int nChannels = signalWindow.Channels.Length;
 
             var config = new ModalAnalysisConfig
             {
-                ModeProminenceThresholddB = 5,
-                DampingFilterBandwidthPercent = 0.15
+                ModeProminenceThresholddB = 3,
+                DampingFilterBandwidthPercent = 0.2,
+                DampingSkipNAfterPeak = 5
             };
 
             // each prominent peak is one of the modes of the structure
@@ -51,17 +58,21 @@ namespace CncMeasurement.Processing
             ModalMode[] modes = new ModalMode[prominentPeaks.Count];
 
 
-            // TESITNG FILTER -------------------
+            // TESITNG FILTERING -------------------
 
             var centerFrequ = prominentPeaks[0].frequency;
 
-            var bandwidth = config.DampingFilterBandwidthPercent * centerFrequ;
-            var filtered = FFTBandPass.Apply(signalWindow.Channels[0].Samples, signalWindow.SampleRate, centerFrequ, bandwidth);
+            var bandwidthh = config.DampingFilterBandwidthPercent * centerFrequ;
+            var filtered = FFTBandPass.Apply(signalWindow.Channels[0].Samples, signalWindow.SampleRateHz, centerFrequ, bandwidthh);
+
+            var envelopee = ModeEnvelope.Extract(signalWindow.Channels[0].Samples, signalWindow.SampleRateHz, centerFrequ, bandwidthh);
+
             SaveComparison(
                 "modal_debug.csv",
                 signalWindow.Channels[0].Samples,
                 filtered,
-                signalWindow.SampleRate);
+                envelopee,
+                signalWindow.SampleRateHz);
 
             // ----------------------------------
 
@@ -70,15 +81,22 @@ namespace CncMeasurement.Processing
             {
                 var modeChannelResults = new ModalChannelResult[nChannels];
                 var peakIdx = prominentPeaks[i].i;
-                var peakFrequ = prominentPeaks[i].frequency;
+                var peakFrequ = prominentPeaks[i].frequency; // frequency at which magnitude peaks
+
+                var bandwidth = config.DampingFilterBandwidthPercent * peakFrequ;
 
                 for (int ch = 0; ch < nChannels; ch++)
                 {
+                    var envelope = ModeEnvelope.Extract(signalWindow.Channels[ch].Samples, signalWindow.SampleRateHz, peakFrequ, bandwidth);
+                    var damping = ModeDamping.ComputeFromEnvelope(envelope, signalWindow.SampleRateHz, peakFrequ, config.DampingSkipNAfterPeak);
+
                     modeChannelResults[ch] = new ModalChannelResult
                     (
                         signalWindow.Channels[ch].AssignedChannelName,
                         fftSpectra.Channels[ch].PSDMagnitudes[peakIdx],
-                        fftSpectra.Channels[ch].Magnitudes[peakIdx]
+                        fftSpectra.Channels[ch].Magnitudes[peakIdx],
+                        damping.DampingRatio,
+                        damping.R2
                     );
                 }
 
@@ -103,6 +121,7 @@ namespace CncMeasurement.Processing
         string filePath,
         double[] original,
         double[] filtered,
+        double[] envelope,
         double sampleRateHz)
         {
             if (original.Length != filtered.Length)
@@ -113,7 +132,7 @@ namespace CncMeasurement.Processing
             var sb = new StringBuilder();
 
             // header
-            sb.AppendLine("Time_s,Original,Filtered");
+            sb.AppendLine("Time_s,Original,Filtered,Envelope");
 
             for (int i = 0; i < original.Length; i++)
             {
@@ -124,6 +143,8 @@ namespace CncMeasurement.Processing
                 sb.Append(original[i].ToString("G17"));
                 sb.Append(",");
                 sb.Append(filtered[i].ToString("G17"));
+                sb.Append(",");
+                sb.Append(envelope[i].ToString("G17"));
                 sb.AppendLine();
             }
 
@@ -159,9 +180,9 @@ namespace CncMeasurement.Processing
             string Pad(string s, int width) => (s ?? "").PadRight(width);
 
             Console.WriteLine(
-                $"{"Mode (Hz)",10}  {Pad("Channel", channelWidth)}  {"PsdAtMode",14}  {"FftMagnitudeAtMode",18}"
+                $"{"Mode (Hz)",10}  {Pad("Channel", channelWidth)}  {"PsdAtMode",14}  {"FftMagnitudeAtMode",18} {"ModeDamping",11} {"RegressionQuality", 17}"
             );
-            Console.WriteLine(new string('-', 10 + 2 + channelWidth + 2 + 14 + 2 + 18));
+            Console.WriteLine(new string('-', 10 + 2 + channelWidth + 2 + 14 + 2 + 18 + 11 + 17));
 
             foreach (var mode in results.Modes.OrderBy(m => m.FrequencyHz))
             {
@@ -182,7 +203,7 @@ namespace CncMeasurement.Processing
                         : "";
 
                     Console.WriteLine(
-                        $"{modeText,10}  {Pad(ch.AssignedChannelName, channelWidth)}  {ch.PsdAtMode,14:G6}  {ch.FftMagnitudeAtMode,18:G6}"
+                        $"{modeText,10}  {Pad(ch.AssignedChannelName, channelWidth)}  {ch.PsdAtMode,14:G6}  {ch.FftMagnitudeAtMode,18:G6} {ch.DampingRate,11:G6} {ch.DampingRegressionQuality,17:G6}"
                     );
                 }
             }
