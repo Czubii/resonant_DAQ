@@ -135,7 +135,7 @@ namespace TestRunner
                 for (int i = 0; i < fft.Frequencies.Length; i++)
                 {
                     await writer.WriteLineAsync(
-                        $"{fft.Frequencies[i]},{ch.AssignedChannelName},{ch.Bins[i].Magnitude}");
+                        $"{fft.Frequencies[i]},{ch.AssignedChannelName},{ch.Magnitudes[i].Magnitude}");
                 }
             }
         }
@@ -322,7 +322,7 @@ namespace TestRunner
                 for (int i = 0; i < half; i++)
                 {
                     await _writer.WriteLineAsync(
-                        $"{frame.TimeStamp:o},{frame.SampleIndex},{ch.AssignedChannelName},{frame.Frequencies[i]},{ch.Bins[i].Magnitude}");
+                        $"{frame.TimeStamp:o},{frame.SampleIndex},{ch.AssignedChannelName},{frame.Frequencies[i]},{ch.Magnitudes[i].Magnitude}");
                 }
             }
         }

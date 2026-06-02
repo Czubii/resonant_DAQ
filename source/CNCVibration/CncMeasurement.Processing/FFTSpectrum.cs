@@ -13,6 +13,30 @@ namespace CncMeasurement.Processing
 {
     public class FFTSpectrum
     {
+        public static (double ResonantFrequencyHz, double PeakAmplitude)[] ResonantFrequencies(FftFrame spectrum)
+        {
+            int nChannels = spectrum.Channels.Length;
+            var output = new (double ResonantFrequencyHz, double PeakAmplitude)[nChannels];
+
+            for (int ch = 0; ch < nChannels; ch++)
+            {
+                double largestAmplitude = 0.0;
+                double resonantFrequ = 0.0;
+
+                for (int i = 1; i < spectrum.Channels[ch].Magnitudes.Length; i++)
+                {
+                    var mag = spectrum.Channels[ch].Magnitudes[i];
+                    if (mag > largestAmplitude)
+                    {
+                        largestAmplitude = mag;
+                        resonantFrequ = spectrum.Frequencies[i];
+                    }
+                }
+                output[ch] = new(resonantFrequ, largestAmplitude);
+            }
+
+            return output;
+        }
         public static FftFrame Compute(SignalFrame signalWindow)
         {
             int channels = signalWindow.Channels.Length;
@@ -63,9 +87,7 @@ namespace CncMeasurement.Processing
 
                 Fourier.Forward(buffer, FourierOptions.Matlab);
 
-                var bins = new FftBin[half];
-                double largestMag = 0.0;
-                double largestMagFrequency = 0.0;
+                var bins = new double[half];
 
                 for (int i = 0; i < half; i++)
                 {
@@ -73,18 +95,11 @@ namespace CncMeasurement.Processing
 
                     mag *= amplitudeScaling; // amplitude correction based on FFT size
 
-                    if (mag > largestMag)
-                    {
-                        largestMag = mag;
-                        largestMagFrequency = frequencies[i];
-                    }
-                    bins[i] = new FftBin(mag);
+                    bins[i] = mag;
                 }
 
                 outputChannels[ch] = new FftChannel(
                     signalWindow.Channels[ch].AssignedChannelName,
-                    largestMagFrequency,
-                    largestMag, 
                     bins);
             }
 
