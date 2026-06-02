@@ -10,6 +10,7 @@ namespace CncMeasurement.Processing
 {
     public class DampingEstimator
     {
+
         /// <summary>
         /// Estimates damping ratio of a free-decay response signal. Works by extracting the peaks from the waveform,
         /// skipping first few to remove the initial transient, and finally applying log transform and fitting a line 
@@ -18,77 +19,77 @@ namespace CncMeasurement.Processing
         /// <param name="window"></param>
         /// <param name="skipFirstN"></param>
         /// <returns></returns>
-        public static double[] Compute(SignalFrame window, double[] dominantFrequencies, int skipFirstN)
-        {
+        //public static double[] Compute(SignalFrame window, double[] dominantFrequencies, int skipFirstN)
+        //{
 
-            int nChannels = window.Channels.Length;
-            double dt = 1.0 / window.SampleRate;
+        //    int nChannels = window.Channels.Length;
+        //    double dt = 1.0 / window.SampleRate;
 
-            var output = new double[nChannels];
+        //    var output = new double[nChannels];
 
-            for (int ch = 0; ch < nChannels; ch++)
-            {
-                var envelope = AbsEnvelope(window.Channels[ch].Samples, dt);
-                var usable = envelope.Skip(skipFirstN).ToList(); // skipping first n peaks
+        //    for (int ch = 0; ch < nChannels; ch++)
+        //    {
+        //        var envelope = AbsEnvelope(window.Channels[ch].Samples, dt);
+        //        var usable = envelope.Skip(skipFirstN).ToList(); // skipping first n peaks
 
-                if (usable.Count < 2)
-                    throw new InvalidOperationException("Not enough peaks after skipping transient.");
+        //        if (usable.Count < 2)
+        //            throw new InvalidOperationException("Not enough peaks after skipping transient.");
 
-                // log transform
-                var x = envelope.Select(a => a.x).ToArray();
-                var y = envelope.Select(a => Math.Log(a.y)).ToArray();
+        //        // log transform
+        //        var x = envelope.Select(a => a.x).ToArray();
+        //        var y = envelope.Select(a => Math.Log(a.y)).ToArray();
 
-                // Linear regression 
+        //        // Linear regression 
 
-                double sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
-                int n = x.Length;
+        //        double sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+        //        int n = x.Length;
 
-                for (int i = 0; i < n; i++)
-                {
-                    sumX += x[i];
-                    sumY += y[i];
-                    sumXY += x[i] * y[i];
-                    sumX2 += x[i] * x[i];
-                }
+        //        for (int i = 0; i < n; i++)
+        //        {
+        //            sumX += x[i];
+        //            sumY += y[i];
+        //            sumXY += x[i] * y[i];
+        //            sumX2 += x[i] * x[i];
+        //        }
 
-                double slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
-                double alpha = -slope;
-                double omegaN = 2.0 * Math.PI * dominantFrequencies[ch];
-                double dampingRatio = alpha / omegaN;
+        //        double slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+        //        double alpha = -slope;
+        //        double omegaN = 2.0 * Math.PI * dominantFrequencies[ch];
+        //        double dampingRatio = alpha / omegaN;
 
-                output[ch] = dampingRatio;
-            }
+        //        output[ch] = dampingRatio;
+        //    }
 
-            return output;
-        }
-        /// <summary>
-        /// computes points describing the envelope of absolute value of function
-        /// desribed by set of equaly spaced points
-        /// </summary>
-        /// <returns></returns>
-        private static List<(double x, double y)> AbsEnvelope(double[] samples, double dt)
-        {
-            int nSamples = samples.Length;
-            var output = new List<(double x, double y)>();
+        //    return output;
+        //}
+        ///// <summary>
+        ///// computes points describing the envelope of absolute value of function
+        ///// desribed by set of equaly spaced points
+        ///// </summary>
+        ///// <returns></returns>
+        //private static List<(double x, double y)> AbsEnvelope(double[] samples, double dt)
+        //{
+        //    int nSamples = samples.Length;
+        //    var output = new List<(double x, double y)>();
 
 
-            for (int i = 1; i < nSamples - 1; i++)
-            {
-                double prev = Math.Abs(samples[i - 1]);
-                double curr = Math.Abs(samples[i]);
-                double next = Math.Abs(samples[i + 1]);
+        //    for (int i = 1; i < nSamples - 1; i++)
+        //    {
+        //        double prev = Math.Abs(samples[i - 1]);
+        //        double curr = Math.Abs(samples[i]);
+        //        double next = Math.Abs(samples[i + 1]);
 
-                if (curr <= prev || curr <= next)
-                    continue; // continue if current sample is not a local maximum
+        //        if (curr <= prev || curr <= next)
+        //            continue; // continue if current sample is not a local maximum
 
-                // ignore zero or numerical noise
-                if (curr < 1e-12)
-                    continue;
+        //        // ignore zero or numerical noise
+        //        if (curr < 1e-12)
+        //            continue;
 
-                output.Add(new (i * dt, curr));
-            }
+        //        output.Add(new (i * dt, curr));
+        //    }
 
-            return output;
-        }
+        //    return output;
+        //}
     }
 }

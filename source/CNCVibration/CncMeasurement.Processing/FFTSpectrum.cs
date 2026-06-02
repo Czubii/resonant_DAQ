@@ -1,6 +1,7 @@
 ﻿using CncMeasurement.Core.models;
 using MathNet.Numerics;
 using MathNet.Numerics.IntegralTransforms;
+using MathNet.Numerics.Statistics;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,6 +12,9 @@ using System.Threading.Tasks;
 
 namespace CncMeasurement.Processing
 {
+    /// <summary>
+    /// For performing operations on fft spectra
+    /// </summary>
     public class FFTSpectrum
     {
         /// <summary>
@@ -18,7 +22,7 @@ namespace CncMeasurement.Processing
         /// </summary>
         /// <param name="spectrum"></param>
         /// <returns></returns>
-        public static (double ResonantFrequencyHz, double PeakAmplitude)[] ResonantFrequencies(FftFrame spectrum)
+        public static (double ResonantFrequencyHz, double PeakAmplitude)[] DominantFrequPerChannel(FftFrame spectrum)
         {
             int nChannels = spectrum.Channels.Length;
             var output = new (double ResonantFrequencyHz, double PeakAmplitude)[nChannels];
@@ -42,98 +46,101 @@ namespace CncMeasurement.Processing
 
             return output;
         }
-        public static FftFrame Compute(SignalFrame signalWindow)
+        /// <summary>
+        /// returns frequencies at which peaks appear in an combined PSD accross all channels. 
+        /// Spectra are combined by using a maximum value at each bin.
+        /// </summary>
+        public static List<(int i, double frequency)> CombinedSpectrumPeaks(FftFrame spectrum, double prominenceThresholddB)
         {
-            int channels = signalWindow.Channels.Length;
+            int nBins = spectrum.FrequenciesHz.Length;
 
-            int nRaw = signalWindow.Channels[0].Samples.Length;
-            int n = NextPowerOfTwo(nRaw);
-
-            double[] window = Window.Hann(nRaw); // window applied to real data
-
-            // Calculate window gain correction factor
-            // For Hann window, the sum of weights is roughly 0.5 * nRaw
-            double windowSum = 0.0;
-            for (int i = 0; i < nRaw; i++) windowSum += window[i];
-
-            // Needed correction factor for PSD:
-            double windowSqSum = 0.0;
-            for (int i = 0; i < nRaw; i++) windowSqSum += window[i] * window[i];
-
-            // PSD base scaling: |X|^2 / (sample_rate * sum(w^2))
-            double psdScaling = 1.0 / (signalWindow.SampleRate * windowSqSum);
-
-            // divided by windowSum to correct for Hann window attenuation.
-            double magScaling = 1.0 / windowSum;
-
-            int nBins = n / 2 + 1;
-
-            double[] frequencies = new double[nBins];
-            double df = signalWindow.SampleRate / n;
-
+            // Combine PSD-s and convert the magnitude to dB:
+            double[] combined = new double[nBins];
             for (int i = 0; i < nBins; i++)
             {
-                frequencies[i] = i * df;
+                combined[i] = spectrum.Channels.Select(a => a.PSDMagnitudes[i]).ToArray().Max();
+                combined[i] = 10*Math.Log10(combined[i]);
             }
 
-            var outputChannels = new FftChannel[channels];
-
-            for (int ch = 0; ch < channels; ch++)
+            // smooth the combined spectrum a bit by using neighboring values:
+            double[] smoothed = new double[nBins];
+            for (int i = 0; i < nBins; i++)
             {
-                var buffer = new Complex[n];
-
-                // apply window + copy signal
-                for (int i = 0; i < nRaw; i++)
+                if (i == 0 || i == nBins - 1)
                 {
-                    buffer[i] = new Complex(
-                        signalWindow.Channels[ch].Samples[i] * window[i],
-                        0.0);
+                    smoothed[i] = 0.0;
+                }
+                else
+                {
+                    smoothed[i] = (combined[i - 1] + combined[i] + combined[i + 1]) / 3;
+                }
+            }
+            List<(int i, double value)> peaks = new List<(int i, double value)>();
+            //loop through smoothed data and determine whether a point is a local max
+            for (int i = 1; i < nBins-1; i++)
+            {
+                if (smoothed[i] > smoothed[i-1] && smoothed[i] > smoothed[i + 1])
+                {
+                    peaks.Add(new(i, smoothed[i]));
+                }
+            }
+            double[] prominences = new double[peaks.Count];
+            // calculate prominence of each peak:
+            for (int p = 0; p<peaks.Count; p++)
+            {
+                var peak = peaks[p];
+                double peakVal = smoothed[peak.i];
+                // Find left bound (stop if we find a higher peak or hit the edge)
+                int leftBound = 0;
+                for (int i = peak.i - 1; i >= 0; i--)
+                {
+                    if (smoothed[i] > peakVal)
+                    {
+                        leftBound = i;
+                        break;
+                    }
+                }
+                // Find right bound (stop if we find a higher peak or hit the edge)
+                int rightBound = nBins - 1;
+                for (int i = peak.i + 1; i < nBins; i++)
+                {
+                    if (smoothed[i] > peakVal)
+                    {
+                        rightBound = i;
+                        break;
+                    }
+                }
+                // Find the minimum value within the left interval
+                double leftMin = peakVal;
+                for (int i = leftBound; i <= peak.i; i++)
+                {
+                    if (smoothed[i] < leftMin) leftMin = smoothed[i];
                 }
 
-                // zero padding
-                for (int i = nRaw; i < n; i++)
+                // Find the minimum value within the right interval
+                double rightMin = peakVal;
+                for (int i = peak.i; i <= rightBound; i++)
                 {
-                    buffer[i] = Complex.Zero;
+                    if (smoothed[i] < rightMin) rightMin = smoothed[i];
                 }
-
-                Fourier.Forward(buffer, FourierOptions.Matlab);
-
-                var mags = new double[nBins];
-                var psdMags = new double[nBins];
-
-                for (int i = 0; i < nBins; i++)
-                {
-                    double mag = buffer[i].Magnitude;
-
-                    double scalingFactor = 2.0;
-                    if (i == 0 || i ==  nBins - 1) scalingFactor = 1.0; // apply scaling to each frequenct except DC and nyquist
-
-                    mags[i] = mag * magScaling * scalingFactor; // amplitude correction based on FFT size
-
-                    double p = (mag * mag) * psdScaling * scalingFactor; // single sided psd
-
-                    psdMags[i] = p;
-                }
-
-                outputChannels[ch] = new FftChannel(
-                    signalWindow.Channels[ch].AssignedChannelName,
-                    mags,
-                    psdMags);
+                double baseline = Math.Max(leftMin, rightMin);
+                prominences[p] = peakVal - baseline;
             }
 
-            return new FftFrame(
-                signalWindow.SampleIndex,
-                n,
-                frequencies,
-                signalWindow.TimeStamp,
-                outputChannels);
-        }
-        private static int NextPowerOfTwo(int n) // needed for padding the signal if number of samples is not power of 2 
-        {
-            int p = 1;
-            while (p < n)
-                p <<= 1;
-            return p;
+            var output = new List<(int i, double frequency)>();
+
+            for (int p = 0; p < peaks.Count; p++)
+            {
+                var peak = peaks[p];
+                var prominence = prominences[p];
+                //Console.WriteLine($"frequency: {spectrum.FrequenciesHz[peak.i]:0.00}, value: {peak.value:0.00}, peominence: {prominence:0.00}");
+                if (prominence > prominenceThresholddB)
+                {
+                    output.Add((peak.i, spectrum.FrequenciesHz[peak.i]));
+                }
+            }
+
+            return output;
         }
     }
 }
