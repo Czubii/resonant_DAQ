@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace CncMeasurement.MockHardware
 {
-    public class ImpulseSignalGenerator : IDataAcquisitionService
+    public class ModalAcquisitionService : IDataAcquisitionService
     {
         private Channel<SampleChunk> _channel = Channel.CreateUnbounded<SampleChunk>();
         public ChannelReader<SampleChunk> Reader => _channel.Reader;
@@ -42,11 +42,13 @@ namespace CncMeasurement.MockHardware
             var startTimeUtc = DateTime.UtcNow;
             string[] assignedChannelNames = config.ChannelConfigs.Select(a => a.NameToAssignToChannel).ToArray();
 
+            var generator = new ModalWaveformGenerator();
+
             try
             {
                 while (!ct.IsCancellationRequested)
                 {
-                    double[,] samples = GenerateWaveform(config);
+                    double[,] samples = generator.GenerateWaveform(config);
 
                     int channels = samples.GetLength(0);
                     int count = samples.GetLength(1);
