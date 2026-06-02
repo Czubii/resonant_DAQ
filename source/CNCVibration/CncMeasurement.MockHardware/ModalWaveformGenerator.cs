@@ -60,10 +60,10 @@ namespace CncMeasurement.MockHardware
 
             modes ??= new[]
             {
-                new Mode(FnHz: 180,  DampingRatio: 0.015, ModalAmplitude: 10, PhaseRad: 0.2),
-                new Mode(FnHz: 520,  DampingRatio: 0.5, ModalAmplitude: 18, PhaseRad: 0.0),
-                new Mode(FnHz: 950,  DampingRatio: 0.020, ModalAmplitude: 7,  PhaseRad: -0.3),
-                new Mode(FnHz: 1450, DampingRatio: 0.030, ModalAmplitude: 3,  PhaseRad: 0.7),
+                new Mode(FnHz: 1000,  DampingRatio: 0.01, ModalAmplitude: 25, PhaseRad: 0.2),
+                new Mode(FnHz: 520,  DampingRatio: 0.01, ModalAmplitude: 18, PhaseRad: 0.0),
+                new Mode(FnHz: 950,  DampingRatio: 0.01, ModalAmplitude: 1,  PhaseRad: -0.3),
+                new Mode(FnHz: 1450, DampingRatio: 0.01, ModalAmplitude: 25,  PhaseRad: 0.7),
             };
 
             channels ??= BuildDefaultChannels(channelCount);

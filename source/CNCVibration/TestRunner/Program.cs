@@ -73,8 +73,8 @@ namespace TestRunner
             {
                 SampleRate = config.SampleRate,
                 ChannelConfigs = config.ChannelConfigs,
-                PreTriggerWindowMs = 2,
-                PostTriggerWindowMs = 200
+                PreTriggerWindowMs = 80,
+                PostTriggerWindowMs = 80
             };
 
 
@@ -99,8 +99,8 @@ namespace TestRunner
                     await foreach (var window in singleShotTrigger.Reader.ReadAllAsync(cts.Token))
                     {
                         var analyzer = new ModalAnalyzer();
-                        var spectrum = FFTSpectrum.Compute(window);
-                        var result = analyzer.Analyze(window, spectrum);
+                        var spectrum = FFTProcessor.ComputeFrame(window);
+                        analyzer.Analyze(window, spectrum);
 
                         string rawPath = $"raw_{counter}.csv";
                         string fftPath = $"fft_{counter}.csv";
@@ -161,85 +161,85 @@ namespace TestRunner
             }
         }
 
-        static async Task TestAcquisition(IDataAcquisitionService DAQService)
-        {
-            var ProcessingService = new LiveSignalProcessor();
+        //static async Task TestAcquisition(IDataAcquisitionService DAQService)
+        //{
+        //    var ProcessingService = new LiveSignalProcessor();
 
-            await using var rmsCsv = new RmsCsvWriter("rms.csv");
-            await using var fftCsv = new FftCsvWriter("fft.csv");
+        //    await using var rmsCsv = new RmsCsvWriter("rms.csv");
+        //    await using var fftCsv = new FftCsvWriter("fft.csv");
 
-            var config = new AcquisitionConfig
-            {
-                SampleRate = 10000,
-                ChunkSize = 4096,
-                GroupName = "test",
-                OutputTDMSPath = "tetstoutput.tdms",
-                ChannelConfigs = new List<ChannelConfig>
-            {
-                new ChannelConfig
-                {
-                    PhysicalChannelName = "cDAQ1Mod1/ai0",
-                    NameToAssignToChannel = "Accel X",
-                    MinRange = -50,
-                    MaxRange = 50,
-                    Sensitivity = 100,
-                },
-                new ChannelConfig
-                {
-                    PhysicalChannelName = "cDAQ1Mod1/ai1",
-                    NameToAssignToChannel = "Accel Y",
-                    MinRange = -50,
-                    MaxRange = 50,
-                    Sensitivity = 100,
-                }
-            }
-            };
+        //    var config = new AcquisitionConfig
+        //    {
+        //        SampleRate = 10000,
+        //        ChunkSize = 4096,
+        //        GroupName = "test",
+        //        OutputTDMSPath = "tetstoutput.tdms",
+        //        ChannelConfigs = new List<ChannelConfig>
+        //    {
+        //        new ChannelConfig
+        //        {
+        //            PhysicalChannelName = "cDAQ1Mod1/ai0",
+        //            NameToAssignToChannel = "Accel X",
+        //            MinRange = -50,
+        //            MaxRange = 50,
+        //            Sensitivity = 100,
+        //        },
+        //        new ChannelConfig
+        //        {
+        //            PhysicalChannelName = "cDAQ1Mod1/ai1",
+        //            NameToAssignToChannel = "Accel Y",
+        //            MinRange = -50,
+        //            MaxRange = 50,
+        //            Sensitivity = 100,
+        //        }
+        //    }
+        //    };
 
-            using var cts = new CancellationTokenSource();
+        //    using var cts = new CancellationTokenSource();
             
-            try
-            {
-                await DAQService.Start(config, cts.Token);
-                await ProcessingService.Start(DAQService.Reader, cts.Token);
+        //    try
+        //    {
+        //        await DAQService.Start(config, cts.Token);
+        //        await ProcessingService.Start(DAQService.Reader, cts.Token);
 
-                var rmsTask = Task.Run(async () =>
-                {
-                    await foreach (var frame in ProcessingService.RMSReader.ReadAllAsync())
-                    {
-                        await rmsCsv.WriteAsync(frame);
+        //        var rmsTask = Task.Run(async () =>
+        //        {
+        //            await foreach (var frame in ProcessingService.RMSReader.ReadAllAsync())
+        //            {
+        //                await rmsCsv.WriteAsync(frame);
 
-                        Console.WriteLine($"RMS @ {frame.SampleIndex}");
-                    }
-                });
-                var fftTask = Task.Run(async () =>
-                {
-                    await foreach (var frame in ProcessingService.FFTReader.ReadAllAsync())
-                    {
-                        await fftCsv.WriteAsync(frame);
+        //                Console.WriteLine($"RMS @ {frame.SampleIndex}");
+        //            }
+        //        });
+        //        var fftTask = Task.Run(async () =>
+        //        {
+        //            await foreach (var frame in ProcessingService.FFTReader.ReadAllAsync())
+        //            {
+        //                await fftCsv.WriteAsync(frame);
 
-                        Console.WriteLine($"FFT @ {frame.SampleIndex}");
-                    }
-                });
+        //                Console.WriteLine($"FFT @ {frame.SampleIndex}");
+        //            }
+        //        });
 
-                Console.WriteLine($"Acquisition Started");
-                await Task.Delay(10000);
-                Console.WriteLine($"Acquisition Stopping");
-                var stopProcessing = ProcessingService.StopAsync();
-                var stopAcquisition = DAQService.StopAsync();
+        //        Console.WriteLine($"Acquisition Started");
+        //        await Task.Delay(10000);
+        //        Console.WriteLine($"Acquisition Stopping");
+        //        var stopProcessing = ProcessingService.StopAsync();
+        //        var stopAcquisition = DAQService.StopAsync();
 
-                await Task.WhenAll(stopAcquisition, stopProcessing, rmsTask, fftTask);
+        //        await Task.WhenAll(stopAcquisition, stopProcessing, rmsTask, fftTask);
 
-            }
-            catch (OperationCanceledException)
-            {
-                Console.WriteLine("Acquisition stopped.");
-            }
-            finally
-            {
+        //    }
+        //    catch (OperationCanceledException)
+        //    {
+        //        Console.WriteLine("Acquisition stopped.");
+        //    }
+        //    finally
+        //    {
 
-                Console.WriteLine("Acquisition stopped.");
-            }
-        }
+        //        Console.WriteLine("Acquisition stopped.");
+        //    }
+        //}
         static async Task PrintRMSAsync(ChannelReader<RmsFrame> reader, CancellationToken ct)
         {
             await foreach (var value in reader.ReadAllAsync(ct))
