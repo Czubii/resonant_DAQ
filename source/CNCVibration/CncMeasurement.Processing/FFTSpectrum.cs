@@ -13,6 +13,11 @@ namespace CncMeasurement.Processing
 {
     public class FFTSpectrum
     {
+        /// <summary>
+        /// lists resonant frequencies based on PSD
+        /// </summary>
+        /// <param name="spectrum"></param>
+        /// <returns></returns>
         public static (double ResonantFrequencyHz, double PeakAmplitude)[] ResonantFrequencies(FftFrame spectrum)
         {
             int nChannels = spectrum.Channels.Length;
@@ -25,11 +30,11 @@ namespace CncMeasurement.Processing
 
                 for (int i = 1; i < spectrum.Channels[ch].Magnitudes.Length; i++)
                 {
-                    var mag = spectrum.Channels[ch].Magnitudes[i];
+                    var mag = spectrum.Channels[ch].PSDMagnitudes[i];
                     if (mag > largestAmplitude)
                     {
                         largestAmplitude = mag;
-                        resonantFrequ = spectrum.Frequencies[i];
+                        resonantFrequ = spectrum.FrequenciesHz[i];
                     }
                 }
                 output[ch] = new(resonantFrequ, largestAmplitude);
@@ -44,23 +49,29 @@ namespace CncMeasurement.Processing
             int nRaw = signalWindow.Channels[0].Samples.Length;
             int n = NextPowerOfTwo(nRaw);
 
-            double[] window = Window.Hann(nRaw); // window applied only to real data
+            double[] window = Window.Hann(nRaw); // window applied to real data
 
             // Calculate window gain correction factor
             // For Hann window, the sum of weights is roughly 0.5 * nRaw
             double windowSum = 0.0;
             for (int i = 0; i < nRaw; i++) windowSum += window[i];
 
-            // Scaling factor: 2.0 for single-sided spectrum correction, 
+            // Needed correction factor for PSD:
+            double windowSqSum = 0.0;
+            for (int i = 0; i < nRaw; i++) windowSqSum += window[i] * window[i];
+
+            // PSD base scaling: |X|^2 / (sample_rate * sum(w^2))
+            double psdScaling = 1.0 / (signalWindow.SampleRate * windowSqSum);
+
             // divided by windowSum to correct for Hann window attenuation.
-            double amplitudeScaling = 2.0 / windowSum;
+            double magScaling = 1.0 / windowSum;
 
-            int half = n / 2;
+            int nBins = n / 2 + 1;
 
-            double[] frequencies = new double[half];
+            double[] frequencies = new double[nBins];
             double df = signalWindow.SampleRate / n;
 
-            for (int i = 0; i < half; i++)
+            for (int i = 0; i < nBins; i++)
             {
                 frequencies[i] = i * df;
             }
@@ -87,20 +98,27 @@ namespace CncMeasurement.Processing
 
                 Fourier.Forward(buffer, FourierOptions.Matlab);
 
-                var bins = new double[half];
+                var mags = new double[nBins];
+                var psdMags = new double[nBins];
 
-                for (int i = 0; i < half; i++)
+                for (int i = 0; i < nBins; i++)
                 {
                     double mag = buffer[i].Magnitude;
 
-                    mag *= amplitudeScaling; // amplitude correction based on FFT size
+                    double scalingFactor = 2.0;
+                    if (i == 0 || i ==  nBins - 1) scalingFactor = 1.0; // apply scaling to each frequenct except DC and nyquist
 
-                    bins[i] = mag;
+                    mags[i] = mag * magScaling * scalingFactor; // amplitude correction based on FFT size
+
+                    double p = (mag * mag) * psdScaling * scalingFactor; // single sided psd
+
+                    psdMags[i] = p;
                 }
 
                 outputChannels[ch] = new FftChannel(
                     signalWindow.Channels[ch].AssignedChannelName,
-                    bins);
+                    mags,
+                    psdMags);
             }
 
             return new FftFrame(
