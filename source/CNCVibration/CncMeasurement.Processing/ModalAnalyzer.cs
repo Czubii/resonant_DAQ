@@ -9,46 +9,56 @@ using System.Threading.Tasks;
 namespace CncMeasurement.Processing
 {
 
-    public sealed record ModalResultsChannel
+    public sealed record ModalChannelObservation
     (
-        FftFrame Spectrum,
+        string AssignedChannelName,
 
-        double ResonantFrequencyHz,
-        double PeakAmplitude,
+        double AmplitudeAtMode,
+        double PhaseAtMode,        // optional but very valuable
 
-        double DampingRatio,
-        double LogarithmicDecrement,
-        double DecayRate,
-
-        double QualityFactor,
-
-        double DampedNaturalFrequencyHz,
-
-        double FitR2
+        double DampingContribution // optional (usually shared anyway)
     );
     public sealed record ModalResults
     (
-        DateTime TimeStamp, //Start of the window
+        long SampleIndex,
+        DateTime TimeStamp,
         ModalResultsChannel[] Channels
-        // Maybe some additional information like mode corelation factor, etc
-
     );
     public class ModalAnalyzer
     {
-        public ModalResults Analyze(SignalFrame signalWindow)
+        public ModalResults Analyze(SignalFrame signalWindow, FftFrame fftSpectra)
         {
             int nChannels = signalWindow.Channels.Length;
-            var fftSpectra = FFTSpectrum.Compute(signalWindow);
 
-            var resonantFrequenciees = fftSpectra.Channels.Select(a => a.ResonantFrequency).ToArray();
-            var dampingRatios = DampingEstimator.Compute(signalWindow, resonantFrequenciees, 10);
+            var resonances = FFTSpectrum.ResonantFrequencies(fftSpectra);
+            var resonantFrequencies = resonances.Select(a => a.ResonantFrequencyHz).ToArray();
+            var peakAmplitudes = resonances.Select(a=>a.PeakAmplitude).ToArray();
+
+            var dampingRatios = DampingEstimator.Compute(signalWindow, resonantFrequencies, 10);
+
+            var resultsChannels = new ModalResultsChannel[nChannels];
 
             for (int ch = 0; ch < nChannels; ch++)
             {
+                resultsChannels[ch] = new ModalResultsChannel
+                (
+                    signalWindow.Channels[ch].AssignedChannelName,
+
+                    resonantFrequencies[ch],
+                    peakAmplitudes[ch],
+
+                    dampingRatios[ch]
+
+                );
                 Console.WriteLine($"Channel {signalWindow.Channels[ch].AssignedChannelName} | Damping Ratio: {dampingRatios[ch]}");
             } 
 
-            return new ModalResults { Spectrum = fftSpectrum };
+            return new ModalResults
+            (
+                signalWindow.SampleIndex,
+                signalWindow.TimeStamp,
+                resultsChannels
+            );
         }
     }
 }

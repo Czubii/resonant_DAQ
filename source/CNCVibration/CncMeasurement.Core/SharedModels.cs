@@ -109,12 +109,6 @@ namespace CncMeasurement.Core.models
             double[,] Samples
         );
 
-
-    public sealed record SignalChannel
-    (
-       string AssignedChannelName,
-       double[] Samples
-    );
     public sealed record SignalFrame // Used for measurement transport between windowing/trigger layers and processing
     (
         long SampleIndex,
@@ -122,9 +116,25 @@ namespace CncMeasurement.Core.models
         DateTime TimeStamp, //Start of the window
         SignalChannel[] Channels
     );
+    public sealed record SignalChannel
+    (
+       string AssignedChannelName,
+       double[] Samples
+    );
 
-
-
+    public sealed record FftFrame
+    (
+        long SampleIndex,
+        int FFTSize,
+        double[] Frequencies,
+        DateTime TimeStamp, //Start of the window
+        FftChannel[] Channels
+    );
+    public sealed record FftChannel
+    (
+        string AssignedChannelName,
+        double[] Magnitudes
+    );
     public sealed record RmsFrame
     (
         long SampleIndex,
@@ -136,39 +146,6 @@ namespace CncMeasurement.Core.models
         string AssignedChannelName,
         double Value
     );
-
-
-
-
-    public sealed record FftBin
-        (
-            double Magnitude
-        );
-        public sealed record FftChannel
-        (
-            string AssignedChannelName,
-            double ResonantFrequency,
-            double PeakAmplitude,
-            FftBin[] Bins
-        );
-        public sealed record FftFrame
-        (
-            long SampleIndex,
-            int FFTSize,
-            double[] Frequencies,
-            DateTime TimeStamp, //Start of the window
-            FftChannel[] Channels
-        );
-
-
-
-        public record PostProcessingResult
-        {
-        float RPM;
-        List<float> DominantFrequencies;
-        List<float> Magnitude;
-        }
-
 }
 
 
