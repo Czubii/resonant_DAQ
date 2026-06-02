@@ -39,7 +39,7 @@ namespace TestRunner
 
         static async Task ExemplaryImpulseResponsePipeline()
         {
-            IDataAcquisitionService signalSource = new ImpulseSignalGenerator();
+            IDataAcquisitionService signalSource = new ModalAcquisitionService();
             var singleShotTrigger = new SingleShotTriggerService();
             var triggerDetector = new LevelTriggerDetector(22.0);
 
