@@ -126,14 +126,44 @@ namespace CncMeasurement.Core.models
     (
         long SampleIndex,
         int FFTSize,
-        double[] Frequencies,
+        double[] FrequenciesHz,
         DateTime TimeStamp, //Start of the window
         FftChannel[] Channels
     );
     public sealed record FftChannel
     (
         string AssignedChannelName,
-        double[] Magnitudes
+        double[] Magnitudes, // Magnitudes here approximate peak amplitude of sinusoidal component at frequency k
+
+        // Computation:
+        // - The time-domain signal x[n] (length = nRaw samples) is multiplied by a Hann window w[n].
+        // - The windowed data is zero-padded to NFFT = FFTSize.
+        // - A complex FFT is computed; X[k] is the FFT result.
+        // - Magnitudes are computed as |X[k]| and scaled by:
+        //      (1 / sum(w)) * S(k)
+        //   where S(k) is the single-sided correction:
+        //      S(0) = 1 (DC),
+        //      S(NFFT/2) = 1 (Nyquist, if present),
+        //      S(k) = 2 otherwise.
+        //
+        // Interpretation:
+        // - Units match the time-domain input samples (e.g., m/s^2 for acceleration).
+        // - For a bin-centered sinusoid, this scaling approximates the sinusoid’s PEAK amplitude.
+        // - Not a density: values are not "per Hz" and depend on window/scaling choices.
+
+        double[] PSDMagnitudes
+        // Computation:
+        // - Uses the same FFT X[k] as above.
+        // - Window power normalization uses sum(w^2).
+        // - PSD is computed as:
+        //      PSD[k] = (|X[k]|^2 / (SampleRate * sum(w^2))) * S(k)
+        //   with the same single-sided correction S(k) as for Magnitudes
+        //   (DC and Nyquist are not doubled; interior bins are doubled).
+        //
+        // Interpretation:
+        // - Units are (input units)^2/Hz.
+        // - PSD is the preferred quantity for comparing spectral levels across different
+        //   record lengths / FFT sizes and for averaging across repeated impacts or time windows.
     );
     public sealed record RmsFrame
     (
