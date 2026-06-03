@@ -10,6 +10,8 @@ using System.Threading.Tasks;
 namespace CncMeasurement.Processing
 {
 
+
+
     public sealed record ModalResults(
         long SampleIndex,
         DateTime TimeStampUtc,
@@ -39,24 +41,17 @@ namespace CncMeasurement.Processing
 
     public interface IModalAnalyzer
     {
-        public ModalResults Analyze(SignalFrame rawSignalWindow, FftFrame fftSpectra);
+        public ModalResults Analyze(SignalFrame rawSignalWindow, FftFrame fftSpectra, ModalAnalysisConfig config);
     }
     public class ModalAnalyzer: IModalAnalyzer
     {
-        public ModalResults Analyze(SignalFrame rawSignalWindow, FftFrame fftFrame)
+        public ModalResults Analyze(SignalFrame rawSignalWindow, FftFrame fftFrame, ModalAnalysisConfig config)
         {
 
             int nChannels = rawSignalWindow.Channels.Length;
 
-            var config = new ModalAnalysisConfig
-            {
-                ModeProminenceThresholddB = 3,
-                DampingFilterBandwidthPercent = 0.1,
-                DampingSkipNAfterPeak = 1
-            };
-
             // each prominent peak is one of the modes of the structure
-            var prominentPeaks = FFTSpectrum.CombinedSpectrumPeaks(fftFrame, config.ModeProminenceThresholddB);
+            var prominentPeaks = FFTSpectrumTools.DetectCombinedSpectrumPeaks(fftFrame, config.ModeProminenceThresholddB);
             int nPeaks = prominentPeaks.Count;
 
             ModalMode[] modes = new ModalMode[prominentPeaks.Count];
@@ -92,7 +87,7 @@ namespace CncMeasurement.Processing
                 for (int ch = 0; ch < nChannels; ch++)
                 {
                     var envelope = ModeEnvelope.Extract(rawSignalWindow.Channels[ch].Samples, rawSignalWindow.SampleRateHz, peakFrequ, bandwidth);
-                    var damping = ModeDamping.ComputeFromEnvelope(envelope, rawSignalWindow.SampleRateHz, peakFrequ, config.DampingSkipNAfterPeak);
+                    var damping = WaveformTools.EstimateModeDamping(envelope, rawSignalWindow.SampleRateHz, peakFrequ, config.DampingSkipNAfterPeak);
 
                     modeChannelResults[ch] = new ModalChannelResult
                     (

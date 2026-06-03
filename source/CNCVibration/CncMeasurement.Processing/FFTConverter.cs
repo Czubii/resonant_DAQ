@@ -13,7 +13,7 @@ namespace CncMeasurement.Processing
     /// <summary>
     /// wrapper for the fft computations
     /// </summary>
-    public class FFTProcessor
+    public class FFTConverter
     {
 
         /// <summary>
