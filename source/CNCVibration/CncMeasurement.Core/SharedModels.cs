@@ -90,7 +90,9 @@ namespace CncMeasurement.Core.models
             public List<ChannelConfig> ChannelConfigs { get; set; }
             public int PreTriggerWindowMs { get; set; }
             public int PostTriggerWindowMs { get; set; }
-        }
+
+            public double Threshold { get; set; }
+    }
         public sealed record BroacastFrame
         {
             List<SampleChunk> samples;

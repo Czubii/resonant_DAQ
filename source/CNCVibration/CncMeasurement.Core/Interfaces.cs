@@ -60,14 +60,8 @@ namespace CncMeasurement.Core.Interfaces
     {
         List<DeviceDescription> GetAvailableDevices();
     }
-    public interface ITriggerDetector
+    public interface ITriggerWindowCapture
     {
-        bool IsTriggered(double[] samples);
-    }
-    public interface ISingleTriggerAcquisitionService
-    {
-        public Task Start(ChannelReader<SampleChunk> input, TriggerConfig config, ITriggerDetector trigger, CancellationToken ct = default);
-        public Task StopAsync();
-        public ChannelReader<SignalFrame> Reader { get; }
+        public Task<SignalFrame> SingleCapture(ChannelReader<SampleChunk> input, TriggerConfig config, CancellationToken ct);
     }
 }
