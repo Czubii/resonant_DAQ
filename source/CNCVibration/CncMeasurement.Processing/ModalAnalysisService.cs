@@ -36,48 +36,34 @@ namespace CncMeasurement.Processing
             _analyzer = analyzer;
         }
 
-        public async Task<ModalAnalysisReport> RunAsync(AcquisitionConfig config,CancellationToken ct)
+        public async Task<ModalAnalysisReport> RunAsync(AcquisitionConfig DaqConfig, TriggerConfig TrigConfig, CancellationToken ct)
         {
             await _runLock.WaitAsync(ct);
             try
             {
 
-                await _rawSignalAcquisition.Start(config, ct); // TODO REMEMBER TO STOP THIS MADNESS
+                await _rawSignalAcquisition.Start(DaqConfig, ct); 
 
-                // start trigger pipeline
-                var triggerTask = _triggerCapture.Start(
-                    signalSource.Reader,
-                    triggerConfig);
+                // Try to acquire the signal, after 20s throw
+                using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+                using var combined = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
 
-                // CSV writer task (consumes SignalWindow stream)
-                var csvTask = Task.Run(async () =>
+                try
                 {
-                    int counter = 0;
+                    var rawFrame = await _triggerCapture.SingleCapture(_rawSignalAcquisition.Reader, TrigConfig, combined.Token);
+                }
+                catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+                {
+                    throw new TimeoutException("No signal detected within 20 seconds.");
+                }
 
-                    await foreach (var window in singleShotTrigger.Reader.ReadAllAsync(cts.Token))
-                    {
-                        var analyzer = new ModalAnalyzer();
-                        var spectrum = FFTProcessor.ComputeFrame(window);
-                        analyzer.Analyze(window, spectrum);
 
-                        string rawPath = $"raw_{counter}.csv";
-                        string fftPath = $"fft_{counter}.csv";
+                var acquisitionStopTask = _rawSignalAcquisition.StopAsync();
 
-                        // 1. save raw signal
-                        await WriteRawCsv(rawPath, window);
+                
 
-                        // 2. save FFT
-                        await WriteFftCsv(fftPath, spectrum);
+                await acquisitionStopTask;
 
-                        counter++;
-                    }
-                }, cts.Token);
-
-                await triggerTask;
-                await csvTask;
-
-                var signal = await _rawSignalAcquisition.AcquireAsync(ct);
-                return _analyzer.Analyze(signal);
             }
             finally
             {
