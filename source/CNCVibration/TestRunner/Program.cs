@@ -41,7 +41,7 @@ namespace TestRunner
         {
             var config = new AcquisitionConfig
             {
-                SampleRate = 5000,
+                SampleRate = 15000,
                 ChunkSize = 4096,
                 GroupName = "test",
                 OutputTDMSPath = "tetstoutput.tdms",
@@ -59,6 +59,14 @@ namespace TestRunner
                     {
                         PhysicalChannelName = "cDAQ1Mod1/ai1",
                         NameToAssignToChannel = "Accel Y",
+                        MinRange = -50,
+                        MaxRange = 50,
+                        Sensitivity = 100,
+                    },
+                    new ChannelConfig
+                    {
+                        PhysicalChannelName = "cDAQ1Mod1/ai1",
+                        NameToAssignToChannel = "Accel Z",
                         MinRange = -50,
                         MaxRange = 50,
                         Sensitivity = 100,
@@ -87,11 +95,13 @@ namespace TestRunner
             IDataAcquisitionService daq = new ModalAcquisitionService();
             IModalAnalyzer analyzer = new ModalAnalyzer();
             ITriggerWindowCapture trigger = new SingleTriggerWindowCapture();
+            IModalExcelReportBuilder reportBuilder = new ModalExcelReportBuilder();
 
             var modalService = new ModalAnalysisService(daq, analyzer, trigger);
 
             var report = await modalService.RunAsync(config, triggerConfig, analysisConfig, cts.Token);
 
+            await reportBuilder.BuildAsync(report,$"modal_report_{DateTime.UtcNow:yyyyMMdd_HHmmss}.xlsx", cts.Token);
         }
 
     }
