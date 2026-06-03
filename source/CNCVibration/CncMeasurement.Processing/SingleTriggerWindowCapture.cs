@@ -14,7 +14,7 @@ namespace CncMeasurement.Processing
     /// Allows to start the data processing after trigger has been hit. In the buffer stores specified amount of data chunks before trigger, and then
     /// sends forward those chunks + another specified amount of chunks after the trigger evenet. Automatically closes the channel after the data has been collected
     /// </summary>
-    public class SingleShotTriggerService : ITriggerWindowCapture
+    public class SingleTriggerWindowCapture : ITriggerWindowCapture
     {
         public async Task<SignalFrame> SingleCapture(ChannelReader<SampleChunk> input, TriggerConfig config, CancellationToken ct)
         {

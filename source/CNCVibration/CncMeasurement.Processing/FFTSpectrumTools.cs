@@ -15,14 +15,14 @@ namespace CncMeasurement.Processing
     /// <summary>
     /// For performing operations on fft spectra
     /// </summary>
-    public class FFTSpectrum
+    public class FFTSpectrumTools
     {
         /// <summary>
         /// lists resonant frequencies based on PSD
         /// </summary>
         /// <param name="spectrum"></param>
         /// <returns></returns>
-        public static (double ResonantFrequencyHz, double PeakAmplitude)[] DominantFrequPerChannel(FftFrame spectrum)
+        public static (double ResonantFrequencyHz, double PeakAmplitude)[] DetectDominantFrequPerChannel(FftFrame spectrum)
         {
             int nChannels = spectrum.Channels.Length;
             var output = new (double ResonantFrequencyHz, double PeakAmplitude)[nChannels];
@@ -50,7 +50,7 @@ namespace CncMeasurement.Processing
         /// returns frequencies at which peaks appear in an combined PSD accross all channels. 
         /// Spectra are combined by using a maximum value at each bin.
         /// </summary>
-        public static List<(int i, double frequency)> CombinedSpectrumPeaks(FftFrame spectrum, double prominenceThresholddB)
+        public static List<(int i, double frequency)> DetectCombinedSpectrumPeaks(FftFrame spectrum, double prominenceThresholddB)
         {
             int nBins = spectrum.FrequenciesHz.Length;
 
@@ -143,46 +143,8 @@ namespace CncMeasurement.Processing
                     output.Add((peak.i, spectrum.FrequenciesHz[peak.i]));
                 }
             }
-            SpectrumCsvExporter.SaveSpectrumCsv(
-    "spectrum_debug.csv",
-    spectrum.FrequenciesHz,
-    smoothed,
-    combined
-);
             return output;
         }
     }
 
-    public static class SpectrumCsvExporter
-    {
-        public static void SaveSpectrumCsv(
-            string filePath,
-            double[] frequenciesHz,
-            double[] smoothed,
-            double[] combined = null)
-        {
-            var sb = new StringBuilder();
-
-            // header
-            if (combined != null)
-                sb.AppendLine("FrequencyHz,Smoothed_dB,Combined_dB");
-            else
-                sb.AppendLine("FrequencyHz,Smoothed_dB");
-
-            // rows
-            for (int i = 0; i < frequenciesHz.Length; i++)
-            {
-                if (combined != null)
-                {
-                    sb.AppendLine($"{frequenciesHz[i]},{smoothed[i]},{combined[i]}");
-                }
-                else
-                {
-                    sb.AppendLine($"{frequenciesHz[i]},{smoothed[i]}");
-                }
-            }
-
-            File.WriteAllText(filePath, sb.ToString());
-        }
-    }
 }

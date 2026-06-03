@@ -8,9 +8,9 @@ using System.Threading.Tasks;
 
 namespace CncMeasurement.Processing
 {
-    public class ModeDamping
+    public static class WaveformTools
     {
-        public static (double R2, double DampingRatio) ComputeFromEnvelope(double[] envelope, double sampleRateHz, double modeFrequencyHz, int skipFirstN)
+        public static (double R2, double DampingRatio) EstimateModeDamping(double[] envelope, double sampleRateHz, double modeFrequencyHz, int skipFirstN)
         {
             int nSamples = envelope.Length;
 
