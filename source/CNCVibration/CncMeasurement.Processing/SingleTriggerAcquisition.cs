@@ -14,29 +14,9 @@ namespace CncMeasurement.Processing
     /// Allows to start the data processing after trigger has been hit. In the buffer stores specified amount of data chunks before trigger, and then
     /// sends forward those chunks + another specified amount of chunks after the trigger evenet. Automatically closes the channel after the data has been collected
     /// </summary>
-    public class SingleShotTriggerService : Core.Interfaces.ISingleTriggerAcquisitionService
+    public class SingleShotTriggerService : ITriggerWindowCapture
     {
-        private Channel<SignalFrame> _outputChannel = Channel.CreateUnbounded<SignalFrame>();
-        public ChannelReader<SignalFrame> Reader => _outputChannel.Reader;
-
-        private Task _processingTask;
-        private CancellationTokenSource _cts;
-
-        public Task Start(ChannelReader<SampleChunk> input, TriggerConfig config, ITriggerDetector trigger, CancellationToken ct = default)
-        {
-            if (_processingTask != null)
-                throw new Exception("Trigger acquisition already running");
-
-            _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-
-            _processingTask = Task.Run(
-                () => ProcessingLoop(input, config, trigger, _cts.Token));
-
-            return Task.CompletedTask;
-        }
-
-        private async Task ProcessingLoop(ChannelReader<SampleChunk> input, TriggerConfig config,
-     ITriggerDetector trigger, CancellationToken ct)
+        public async Task<SignalFrame> SingleCapture(ChannelReader<SampleChunk> input, TriggerConfig config, CancellationToken ct)
         {
             int preTriggerSamples = (int)(config.PreTriggerWindowMs * config.SampleRate / 1000);
             int postTriggerSamples = (int)(config.PostTriggerWindowMs * config.SampleRate / 1000);
@@ -54,122 +34,105 @@ namespace CncMeasurement.Processing
 
             double[] samplesPerChannel = null!;
 
-            try
+            await foreach (var chunk in input.ReadAllAsync(ct))
             {
-                await foreach (var chunk in input.ReadAllAsync(ct))
+                if (numChannels == 0)
                 {
-                    if (numChannels == 0)
+                    numChannels = chunk.NumChannels;
+                    samplesPerChannel = new double[numChannels]; // Delayed initialization
+                }
+
+                for (int i = 0; i < chunk.NumSamples; i++)
+                {
+                    ct.ThrowIfCancellationRequested();
+
+                    for (int ch = 0; ch < numChannels; ch++)
                     {
-                        numChannels = chunk.NumChannels;
-                        samplesPerChannel = new double[numChannels]; // Delayed initialization
+                        samplesPerChannel[ch] = chunk.Samples[ch, i];
                     }
 
-                    for (int i = 0; i < chunk.NumSamples; i++)
+                    // --- CASE 1: Searching for Trigger ---
+                    if (!triggered)
                     {
-                        ct.ThrowIfCancellationRequested();
+                        preBuffer.Add((double[])samplesPerChannel.Clone());
 
-                        for (int ch = 0; ch < numChannels; ch++)
+                        if (IsTriggered(samplesPerChannel, config))
                         {
-                            samplesPerChannel[ch] = chunk.Samples[ch, i];
-                        }
+                            triggered = true;
 
-                        // --- CASE 1: Searching for Trigger ---
-                        if (!triggered)
-                        {
-                            preBuffer.Add((double[])samplesPerChannel.Clone());
+                            int triggerGlobalIndex = (int)(chunk.SampleIndex + i);
+                            outputWindowStartIndex = triggerGlobalIndex - preTriggerSamples;
 
-                            if (trigger.IsTriggered(samplesPerChannel))
-                            {
-                                triggered = true;
+                            var triggerTime = chunk.TimeStamp.AddSeconds((double)i / chunk.SampleRate);
+                            outputWindowStartTime = triggerTime.AddSeconds(-preTriggerSamples / chunk.SampleRate);
 
-                                int triggerGlobalIndex = (int)(chunk.SampleIndex + i);
-                                outputWindowStartIndex = triggerGlobalIndex - preTriggerSamples;
-
-                                var triggerTime = chunk.TimeStamp.AddSeconds((double)i / chunk.SampleRate);
-                                outputWindowStartTime = triggerTime.AddSeconds(-preTriggerSamples / chunk.SampleRate);
-
-                                // Prepare output structure
-                                measurement = new double[numChannels][];
-                                for (int ch = 0; ch < numChannels; ch++)
-                                {
-                                    measurement[ch] = new double[totalSamples];
-                                }
-
-                                var preSamples = preBuffer.ToArray();
-
-                                for (int sampleIdx = 0; sampleIdx < preSamples.Length; sampleIdx++)
-                                {
-                                    var sample = preSamples[sampleIdx];
-                                    for (int ch = 0; ch < numChannels; ch++)
-                                    {
-                                        measurement[ch][writeIndex] = sample[ch];
-                                    }
-                                    writeIndex++;
-                                }
-                            }
-                            continue;
-                        }
-
-                        // --- CASE 2: Capturing Post-Trigger Data ---
-                        for (int ch = 0; ch < numChannels; ch++)
-                        {
-                            measurement[ch][writeIndex] = samplesPerChannel[ch];
-                        }
-                        writeIndex++;
-
-                        // Frame complete check
-                        if (writeIndex >= totalSamples)
-                        {
-                            var channels = new SignalChannel[numChannels];
+                            // Prepare output structure
+                            measurement = new double[numChannels][];
                             for (int ch = 0; ch < numChannels; ch++)
                             {
-                                channels[ch] = new SignalChannel(
-                                    config.ChannelConfigs[ch].NameToAssignToChannel,
-                                    measurement[ch]
-                                );
+                                measurement[ch] = new double[totalSamples];
                             }
 
-                            await _outputChannel.Writer.WriteAsync(new SignalFrame(
-                                outputWindowStartIndex,
-                                config.SampleRate,
-                                outputWindowStartTime,
-                                channels
-                            ), ct);
+                            var preSamples = preBuffer.ToArray();
 
-                            // Exits the loop and terminates the method after 1 full capture window.
-                            return;
+                            for (int sampleIdx = 0; sampleIdx < preSamples.Length; sampleIdx++)
+                            {
+                                var sample = preSamples[sampleIdx];
+                                for (int ch = 0; ch < numChannels; ch++)
+                                {
+                                    measurement[ch][writeIndex] = sample[ch];
+                                }
+                                writeIndex++;
+                            }
                         }
+                        continue;
+                    }
+
+                    // --- CASE 2: Capturing Post-Trigger Data ---
+                    for (int ch = 0; ch < numChannels; ch++)
+                    {
+                        measurement[ch][writeIndex] = samplesPerChannel[ch];
+                    }
+                    writeIndex++;
+
+                    // Frame complete check
+                    if (writeIndex >= totalSamples)
+                    {
+                        var channels = new SignalChannel[numChannels];
+                        for (int ch = 0; ch < numChannels; ch++)
+                        {
+                            channels[ch] = new SignalChannel(
+                                config.ChannelConfigs[ch].NameToAssignToChannel,
+                                measurement[ch]
+                            );
+                        }
+
+                        return new SignalFrame(
+                            outputWindowStartIndex,
+                            config.SampleRate,
+                            outputWindowStartTime,
+                            channels
+                        );
+
                     }
                 }
             }
-            catch (Exception ex)
-            {
-                _outputChannel.Writer.TryComplete(ex);
-                throw; 
-            }
-            finally
-            {
-                _outputChannel.Writer.TryComplete();
-            }
+
+            throw new Exception("Capture failed.");
         }
 
-        public async Task StopAsync()
+        public bool IsTriggered(double[] samples, TriggerConfig config)
         {
-            if (_processingTask == null) return;
+            int channels = samples.Length;
 
-            _cts.Cancel();
-
-            try
+            for (int c = 0; c < channels; c++)
             {
-                await _processingTask.ConfigureAwait(false);
+                if (Math.Abs(samples[c]) >= config.Threshold)
+                {
+                    return true;
+                }
             }
-            catch (OperationCanceledException) { }
-
-            _outputChannel.Writer.TryComplete();
-
-            _processingTask = null;
-            _cts.Dispose();
-            _cts = null;
+            return false;
         }
     }
 

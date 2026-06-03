@@ -41,7 +41,6 @@ namespace TestRunner
         {
             IDataAcquisitionService signalSource = new ModalAcquisitionService();
             var singleShotTrigger = new SingleShotTriggerService();
-            var triggerDetector = new LevelTriggerDetector(10.0);
 
             var config = new AcquisitionConfig
             {
@@ -74,7 +73,8 @@ namespace TestRunner
                 SampleRate = config.SampleRate,
                 ChannelConfigs = config.ChannelConfigs,
                 PreTriggerWindowMs = 50,
-                PostTriggerWindowMs = 200
+                PostTriggerWindowMs = 200,
+                Threshold = 1.0
             };
 
 
@@ -88,8 +88,7 @@ namespace TestRunner
                 // start trigger pipeline
                 var triggerTask = singleShotTrigger.Start(
                     signalSource.Reader,
-                    triggerConfig,
-                    triggerDetector);
+                    triggerConfig);
 
                 // CSV writer task (consumes SignalWindow stream)
                 var csvTask = Task.Run(async () =>
