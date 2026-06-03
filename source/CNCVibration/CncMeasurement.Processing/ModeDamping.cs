@@ -28,8 +28,8 @@ namespace CncMeasurement.Processing
 
             int startIdx = envelopePeakIdx + skipFirstN;
 
-            if (startIdx >= nSamples - 2)
-                throw new ArgumentException("Not enough decay samples.");
+            if (startIdx >= nSamples - 2) return (0.0, 0.0);
+                //throw new ArgumentException("Not enough decay samples.");
 
             // linear regression accumulators
             double sumT = 0.0;

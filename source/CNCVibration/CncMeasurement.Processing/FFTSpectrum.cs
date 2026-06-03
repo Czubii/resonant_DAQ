@@ -58,8 +58,7 @@ namespace CncMeasurement.Processing
             double[] combined = new double[nBins];
             for (int i = 0; i < nBins; i++)
             {
-                combined[i] = spectrum.Channels.Select(a => a.PSDMagnitudes[i]).ToArray().Max();
-                combined[i] = 10*Math.Log10(combined[i]);
+                combined[i] = spectrum.Channels.Max(a => 10 * Math.Log10(Math.Max(a.PSDMagnitudes[i], 1e-12)));
             }
 
             // smooth the combined spectrum a bit by using neighboring values:
@@ -68,11 +67,15 @@ namespace CncMeasurement.Processing
             {
                 if (i == 0 || i == nBins - 1)
                 {
-                    smoothed[i] = 0.0;
+                    smoothed[i] = combined[i]; // copy at the edges
+                }
+                else if (i == 1 || i == nBins - 2)
+                {
+                    smoothed[i] = (combined[i - 1] + combined[i] + combined[i + 1]) / 3;
                 }
                 else
                 {
-                    smoothed[i] = (combined[i - 1] + combined[i] + combined[i + 1]) / 3;
+                    smoothed[i] = (combined[i - 2] + combined[i - 1] + combined[i] + combined[i + 1] + combined[i + 2]) / 5;
                 }
             }
             List<(int i, double value)> peaks = new List<(int i, double value)>();
@@ -129,18 +132,57 @@ namespace CncMeasurement.Processing
 
             var output = new List<(int i, double frequency)>();
 
+
             for (int p = 0; p < peaks.Count; p++)
             {
                 var peak = peaks[p];
                 var prominence = prominences[p];
                 //Console.WriteLine($"frequency: {spectrum.FrequenciesHz[peak.i]:0.00}, value: {peak.value:0.00}, peominence: {prominence:0.00}");
-                if (prominence > prominenceThresholddB)
+                if (prominence >  prominenceThresholddB)
                 {
                     output.Add((peak.i, spectrum.FrequenciesHz[peak.i]));
                 }
             }
-
+            SpectrumCsvExporter.SaveSpectrumCsv(
+    "spectrum_debug.csv",
+    spectrum.FrequenciesHz,
+    smoothed,
+    combined
+);
             return output;
+        }
+    }
+
+    public static class SpectrumCsvExporter
+    {
+        public static void SaveSpectrumCsv(
+            string filePath,
+            double[] frequenciesHz,
+            double[] smoothed,
+            double[] combined = null)
+        {
+            var sb = new StringBuilder();
+
+            // header
+            if (combined != null)
+                sb.AppendLine("FrequencyHz,Smoothed_dB,Combined_dB");
+            else
+                sb.AppendLine("FrequencyHz,Smoothed_dB");
+
+            // rows
+            for (int i = 0; i < frequenciesHz.Length; i++)
+            {
+                if (combined != null)
+                {
+                    sb.AppendLine($"{frequenciesHz[i]},{smoothed[i]},{combined[i]}");
+                }
+                else
+                {
+                    sb.AppendLine($"{frequenciesHz[i]},{smoothed[i]}");
+                }
+            }
+
+            File.WriteAllText(filePath, sb.ToString());
         }
     }
 }

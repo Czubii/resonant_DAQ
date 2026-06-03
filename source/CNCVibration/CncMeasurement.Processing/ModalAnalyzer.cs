@@ -47,8 +47,8 @@ namespace CncMeasurement.Processing
             var config = new ModalAnalysisConfig
             {
                 ModeProminenceThresholddB = 3,
-                DampingFilterBandwidthPercent = 0.2,
-                DampingSkipNAfterPeak = 5
+                DampingFilterBandwidthPercent = 0.1,
+                DampingSkipNAfterPeak = 1
             };
 
             // each prominent peak is one of the modes of the structure
@@ -180,9 +180,9 @@ namespace CncMeasurement.Processing
             string Pad(string s, int width) => (s ?? "").PadRight(width);
 
             Console.WriteLine(
-                $"{"Mode (Hz)",10}  {Pad("Channel", channelWidth)}  {"PsdAtMode",14}  {"FftMagnitudeAtMode",18} {"ModeDamping",11} {"RegressionQuality", 17}"
+                $"{"Mode (Hz)",10}  {Pad("Channel", channelWidth)}  {"PsdAtMode",14}  {"FftMagnitudeAtMode",18} {"ModeDamping",13} {"RegressionQuality", 17}"
             );
-            Console.WriteLine(new string('-', 10 + 2 + channelWidth + 2 + 14 + 2 + 18 + 11 + 17));
+            Console.WriteLine(new string('-', 10 + 2 + channelWidth + 2 + 14 + 2 + 18 + 13 + 17));
 
             foreach (var mode in results.Modes.OrderBy(m => m.FrequencyHz))
             {
@@ -203,7 +203,7 @@ namespace CncMeasurement.Processing
                         : "";
 
                     Console.WriteLine(
-                        $"{modeText,10}  {Pad(ch.AssignedChannelName, channelWidth)}  {ch.PsdAtMode,14:G6}  {ch.FftMagnitudeAtMode,18:G6} {ch.DampingRate,11:G6} {ch.DampingRegressionQuality,17:G6}"
+                        $"{modeText,10}  {Pad(ch.AssignedChannelName, channelWidth)}  {ch.PsdAtMode,14:G6}  {ch.FftMagnitudeAtMode,18:G6} {ch.DampingRate,13:G6} {ch.DampingRegressionQuality,17:G6}"
                     );
                 }
             }
