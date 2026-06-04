@@ -87,7 +87,8 @@ namespace TestRunner
             {
                 ModeProminenceThresholddB = 2,
                 DampingFilterBandwidthPercent = 0.2,
-                DampingSkipNAfterPeak = 1,
+                DampingStartPeakPercent = 0.95f,
+                DampingEndPeakPercent = 0.05f,
                 UseNDominantModes = 8
             };
 
@@ -98,11 +99,11 @@ namespace TestRunner
             ITriggerWindowCapture trigger = new SingleTriggerWindowCapture();
             IModalExcelReportBuilder reportBuilder = new ModalExcelReportBuilder();
 
-            var modalService = new ModalAnalysisService(daq, analyzer, trigger);
+            var modalService = new ModalAnalysisService(daq, analyzer, trigger, reportBuilder);
 
-            var report = await modalService.RunAsync(config, triggerConfig, analysisConfig, cts.Token);
+            var results = await modalService.RunAsync(config, triggerConfig, analysisConfig, cts.Token);
 
-            await reportBuilder.BuildAsync(report,$"modal_report_{DateTime.UtcNow:yyyyMMdd_HHmmss}.xlsx", cts.Token);
+
         }
 
     }

@@ -11,15 +11,14 @@ namespace CncMeasurement.Processing
     public interface IModalExcelReportBuilder
     {
         Task<string> BuildAsync(
-            ModalAnalysisReport report,
+            ModalAnalysisReportInternal report,
             string outputPath,
             CancellationToken ct);
     }
-
     public sealed class ModalExcelReportBuilder : IModalExcelReportBuilder
     {
         public Task<string> BuildAsync(
-            ModalAnalysisReport report,
+            ModalAnalysisReportInternal report,
             string outputPath,
             CancellationToken ct)
         {
@@ -37,7 +36,7 @@ namespace CncMeasurement.Processing
 
             return Task.FromResult(outputPath);
         }
-        private static void BuildSummarySheet(XLWorkbook wb, ModalAnalysisReport report)
+        private static void BuildSummarySheet(XLWorkbook wb, ModalAnalysisReportInternal report)
         {
             var ws = wb.Worksheets.Add("Summary");
 
@@ -55,7 +54,7 @@ namespace CncMeasurement.Processing
 
             ws.Columns().AdjustToContents();
         }
-        private static void BuildModalSheet(XLWorkbook wb, ModalResults results)
+        private static void BuildModalSheet(XLWorkbook wb, ModalResultsInternal results)
         {
             var ws = wb.Worksheets.Add("Modes");
 
@@ -93,7 +92,7 @@ namespace CncMeasurement.Processing
 
             ws.Columns().AdjustToContents();
         }
-        private static void BuildEnvelopeSheet(XLWorkbook wb, ModalAnalysisReport results)
+        private static void BuildEnvelopeSheet(XLWorkbook wb, ModalAnalysisReportInternal results)
         {
             var ws = wb.Worksheets.Add("Envelopes");
 
