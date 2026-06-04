@@ -70,8 +70,15 @@ namespace TestRunner
         static async Task RunSingleMeasurement(CancellationToken token)
         {
             Console.WriteLine("Running single measurement...");
-
-            await ExemplaryImpulseResponsePipeline(token);
+            try
+            {
+                await ExemplaryImpulseResponsePipeline(token);
+            }
+            catch (TimeoutException ex)
+            {
+                Console.WriteLine($"Timeout: {ex.Message}");
+            }
+            
 
             Console.WriteLine("Measurement finished.");
         }
@@ -83,7 +90,14 @@ namespace TestRunner
             {
                 try
                 {
-                    await ExemplaryImpulseResponsePipeline(token);
+                    try
+                    {
+                        await ExemplaryImpulseResponsePipeline(token);
+                    }
+                    catch (TimeoutException ex)
+                    {
+                        Console.WriteLine($"Timeout: {ex.Message}");
+                    }
                 }
                 catch (OperationCanceledException)
                 {

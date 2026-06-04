@@ -43,7 +43,7 @@ namespace CncMeasurement.MockHardware
         /// </summary>
         public double[,] GenerateWaveform(
             AcquisitionConfig config,
-            double impactTimeSeconds = 2.0,        // absolute time in generator timeline
+            double impactTimeSeconds = 102.0,        // absolute time in generator timeline
             double impactWidthSeconds = 0.0012,    // gaussian sigma-ish
             double impactAmplitude = 2.0,
             IReadOnlyList<Mode>? modes = null,
