@@ -50,7 +50,8 @@ namespace CncMeasurement.Processing
         /// returns frequencies at which peaks appear in an combined PSD accross all channels. 
         /// Spectra are combined by using a maximum value at each bin.
         /// </summary>
-        public static List<(int i, double frequency)> DetectCombinedSpectrumPeaks(FftFrame spectrum, double prominenceThresholddB)
+        public static List<(int i, double frequency)> DetectCombinedSpectrumPeaks(FftFrame spectrum, double prominenceThresholddB, 
+            int maxPeaks = 5)
         {
             int nBins = spectrum.FrequenciesHz.Length;
 
@@ -78,7 +79,7 @@ namespace CncMeasurement.Processing
                     smoothed[i] = (combined[i - 2] + combined[i - 1] + combined[i] + combined[i + 1] + combined[i + 2]) / 5;
                 }
             }
-            List<(int i, double value)> peaks = new List<(int i, double value)>();
+            var peaks = new List<(int i, double value)>();
             //loop through smoothed data and determine whether a point is a local max
             for (int i = 1; i < nBins-1; i++)
             {
@@ -87,13 +88,12 @@ namespace CncMeasurement.Processing
                     peaks.Add(new(i, smoothed[i]));
                 }
             }
-            double[] prominences = new double[peaks.Count];
+            var candidates = new List<(int i, double frequency, double powerDb)>();
             // calculate prominence of each peak:
-            for (int p = 0; p<peaks.Count; p++)
+            foreach (var peak in peaks)
             {
-                var peak = peaks[p];
                 double peakVal = smoothed[peak.i];
-                // Find left bound (stop if we find a higher peak or hit the edge)
+
                 int leftBound = 0;
                 for (int i = peak.i - 1; i >= 0; i--)
                 {
@@ -103,7 +103,7 @@ namespace CncMeasurement.Processing
                         break;
                     }
                 }
-                // Find right bound (stop if we find a higher peak or hit the edge)
+
                 int rightBound = nBins - 1;
                 for (int i = peak.i + 1; i < nBins; i++)
                 {
@@ -113,37 +113,33 @@ namespace CncMeasurement.Processing
                         break;
                     }
                 }
-                // Find the minimum value within the left interval
+
                 double leftMin = peakVal;
                 for (int i = leftBound; i <= peak.i; i++)
-                {
-                    if (smoothed[i] < leftMin) leftMin = smoothed[i];
-                }
+                    leftMin = Math.Min(leftMin, smoothed[i]);
 
-                // Find the minimum value within the right interval
                 double rightMin = peakVal;
                 for (int i = peak.i; i <= rightBound; i++)
+                    rightMin = Math.Min(rightMin, smoothed[i]);
+
+                double prominence = peakVal - Math.Max(leftMin, rightMin);
+
+                if (prominence > prominenceThresholddB)
                 {
-                    if (smoothed[i] < rightMin) rightMin = smoothed[i];
+                    candidates.Add((
+                        peak.i,
+                        spectrum.FrequenciesHz[peak.i],
+                        peakVal)); // store power in dB
                 }
-                double baseline = Math.Max(leftMin, rightMin);
-                prominences[p] = peakVal - baseline;
             }
 
             var output = new List<(int i, double frequency)>();
 
-
-            for (int p = 0; p < peaks.Count; p++)
-            {
-                var peak = peaks[p];
-                var prominence = prominences[p];
-                //Console.WriteLine($"frequency: {spectrum.FrequenciesHz[peak.i]:0.00}, value: {peak.value:0.00}, peominence: {prominence:0.00}");
-                if (prominence >  prominenceThresholddB)
-                {
-                    output.Add((peak.i, spectrum.FrequenciesHz[peak.i]));
-                }
-            }
-            return output;
+            return candidates
+                .OrderByDescending(x => x.powerDb)
+                .Take(maxPeaks)
+                .Select(x => (x.i, x.frequency))
+                .ToList();
         }
     }
 

@@ -29,6 +29,8 @@ namespace CncMeasurement.Processing
             BuildModalSheet(wb, report.NumericalResults);
             BuildFftSheet(wb, report.SignalFFT);
             BuildPsdSheet(wb, report.SignalFFT);
+
+            BuildEnvelopeSheet(wb, report);
             BuildRawSignalSheet(wb, report.SignalRaw);
 
             wb.SaveAs(outputPath);
@@ -62,10 +64,11 @@ namespace CncMeasurement.Processing
             ws.Cell(1, 3).Value = "Channel";
             ws.Cell(1, 4).Value = "PSD at Mode";
             ws.Cell(1, 5).Value = "FFT Magnitude";
-            ws.Cell(1, 6).Value = "Damping Rate";
-            ws.Cell(1, 7).Value = "Regression Quality";
+            ws.Cell(1, 6).Value = "Decay Time [s]";
+            ws.Cell(1, 7).Value = "Damping Rate";
+            ws.Cell(1, 8).Value = "Damping Rate R^2";
 
-            ws.Range(1, 1, 1, 7).Style.Font.Bold = true;
+            ws.Range(1, 1, 1, 8).Style.Font.Bold = true;
 
             int row = 2;
 
@@ -81,11 +84,48 @@ namespace CncMeasurement.Processing
                     ws.Cell(row, 4).Value = ch.PsdAtMode;
                     ws.Cell(row, 5).Value = ch.FftMagnitudeAtMode;
                     ws.Cell(row, 6).Value = ch.DampingRate;
-                    ws.Cell(row, 7).Value = ch.DampingRegressionQuality;
+                    ws.Cell(row, 7).Value = ch.DecayTime;
+                    ws.Cell(row, 8).Value = ch.DampingRegressionQuality;
 
                     row++;
                 }
             }
+
+            ws.Columns().AdjustToContents();
+        }
+        private static void BuildEnvelopeSheet(XLWorkbook wb, ModalAnalysisReport results)
+        {
+            var ws = wb.Worksheets.Add("Envelopes");
+
+            ws.Cell(1, 1).Value = "Mode Frequency [Hz]";
+            ws.Cell(1, 2).Value = "Channel";
+            ws.Cell(1, 3).Value = "Time [s]";
+            ws.Cell(1, 4).Value = "Envelope Value";
+
+            int row = 2;
+            var sampleRate = results.SignalRaw.SampleRateHz;
+
+            foreach (var mode in results.NumericalResults.Modes)
+            {
+                foreach (var channel in mode.Channels)
+                {
+                    for (int i = 0; i < channel.Envelope.Length; i++)
+                    {
+                        ws.Cell(row, 1).Value = mode.FrequencyHz;
+                        ws.Cell(row, 2).Value = channel.AssignedChannelName;
+                        ws.Cell(row, 3).Value = i/sampleRate;
+                        ws.Cell(row, 4).Value = channel.Envelope[i];
+
+                        row++;
+                    }
+                }
+            }
+
+            var table = ws.Range(1, 1, row - 1, 4)
+                .CreateTable();
+
+            table.Name = "EnvelopeTable";
+            table.Theme = XLTableTheme.TableStyleMedium6;
 
             ws.Columns().AdjustToContents();
         }
@@ -145,7 +185,7 @@ namespace CncMeasurement.Processing
         {
             var ws = wb.Worksheets.Add("RawSignal");
 
-            ws.Cell(1, 1).Value = "Sample Index";
+            ws.Cell(1, 1).Value = "Time [s]";
             ws.Cell(1, 1).Style.Font.Bold = true;
 
             for (int ch = 0; ch < signal.Channels.Length; ch++)
@@ -154,10 +194,11 @@ namespace CncMeasurement.Processing
             }
 
             int samples = signal.Channels[0].Samples.Length;
+            var sampleRate = signal.SampleRateHz;
 
             for (int i = 0; i < samples; i++)
             {
-                ws.Cell(i + 2, 1).Value = i;
+                ws.Cell(i + 2, 1).Value = i/sampleRate;
 
                 for (int ch = 0; ch < signal.Channels.Length; ch++)
                 {

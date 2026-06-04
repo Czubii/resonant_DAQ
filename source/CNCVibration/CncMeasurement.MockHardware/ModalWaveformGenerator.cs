@@ -44,8 +44,8 @@ namespace CncMeasurement.MockHardware
         public double[,] GenerateWaveform(
             AcquisitionConfig config,
             double impactTimeSeconds = 2.0,        // absolute time in generator timeline
-            double impactWidthSeconds = 0.0008,    // gaussian sigma-ish
-            double impactAmplitude = 20.0,
+            double impactWidthSeconds = 0.0012,    // gaussian sigma-ish
+            double impactAmplitude = 2.0,
             IReadOnlyList<Mode>? modes = null,
             IReadOnlyList<ChannelModel>? channels = null,
             double crossTalk = 0.03
@@ -60,10 +60,25 @@ namespace CncMeasurement.MockHardware
 
             modes ??= new[]
             {
-                new Mode(FnHz: 200,  DampingRatio: 0.05, ModalAmplitude: 34, PhaseRad: 0.7),
-                new Mode(FnHz: 202,  DampingRatio: 0.05, ModalAmplitude: 34, PhaseRad: 0.2),
-                new Mode(FnHz: 204,  DampingRatio: 0.05, ModalAmplitude: 34, PhaseRad: 0.1),
-                new Mode(FnHz: 2480,  DampingRatio: 0.01, ModalAmplitude: 34, PhaseRad: -1),
+                // Rigid body / isolation modes (machine rocking on rubber feet)
+                new Mode(FnHz: 18,   DampingRatio: 0.12, ModalAmplitude: 1.00, PhaseRad: 0.0),
+                new Mode(FnHz: 22,   DampingRatio: 0.10, ModalAmplitude: 0.90, PhaseRad: 1.2),
+                new Mode(FnHz: 28,   DampingRatio: 0.10, ModalAmplitude: 0.85, PhaseRad: -0.8),
+
+                // Frame bending modes (aluminum structure)
+                new Mode(FnHz: 180,  DampingRatio: 0.04, ModalAmplitude: 0.60, PhaseRad: 0.4),
+                new Mode(FnHz: 220,  DampingRatio: 0.04, ModalAmplitude: 0.55, PhaseRad: -0.6),
+                new Mode(FnHz: 260,  DampingRatio: 0.05, ModalAmplitude: 0.50, PhaseRad: 1.1),
+
+                // Gantry / column torsion
+                new Mode(FnHz: 420,  DampingRatio: 0.03, ModalAmplitude: 0.35, PhaseRad: -1.0),
+
+                // Spindle / headstock structural modes
+                new Mode(FnHz: 1500, DampingRatio: 0.02, ModalAmplitude: 0.20, PhaseRad: 0.2),
+                new Mode(FnHz: 2400, DampingRatio: 0.02, ModalAmplitude: 0.18, PhaseRad: -0.7),
+
+                // High-frequency local modes (tool / motor / housing)
+                new Mode(FnHz: 5200, DampingRatio: 0.01, ModalAmplitude: 0.10, PhaseRad: 1.5),
             };
 
             channels ??= BuildDefaultChannels(channelCount);
