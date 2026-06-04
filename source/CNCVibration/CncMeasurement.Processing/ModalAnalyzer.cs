@@ -12,11 +12,11 @@ namespace CncMeasurement.Processing
 
     public interface IModalAnalyzer
     {
-        public ModalResultsInternal Analyze(SignalFrame rawSignalWindow, FftFrame fftSpectra, ModalAnalysisConfig config);
+        public ModalResultsInternal Analyze(SignalFrame rawSignalWindow, FftFrame fftSpectra, ModalAnalysisConfig config, ReportDetailLevel level);
     }
     public class ModalAnalyzer: IModalAnalyzer
     {
-        public ModalResultsInternal Analyze(SignalFrame rawSignalWindow, FftFrame fftFrame, ModalAnalysisConfig config)
+        public ModalResultsInternal Analyze(SignalFrame rawSignalWindow, FftFrame fftFrame, ModalAnalysisConfig config, ReportDetailLevel level)
         {
 
             int nChannels = rawSignalWindow.Channels.Length;
@@ -50,7 +50,10 @@ namespace CncMeasurement.Processing
                         damping.DecayTime,
                         damping.DampingRatio,
                         damping.R2,
-                        envelope
+                        level == ReportDetailLevel.Full ? envelope : null,
+                        level == ReportDetailLevel.Full ? 
+                        FFTBandPass.Apply(rawSignalWindow.Channels[ch].Samples, rawSignalWindow.SampleRateHz, peakFrequ, bandwidth) 
+                        : null
                     );
                 }
 
