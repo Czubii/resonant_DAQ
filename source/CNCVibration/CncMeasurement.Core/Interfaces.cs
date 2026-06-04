@@ -64,4 +64,8 @@ namespace CncMeasurement.Core.Interfaces
     {
         public Task<SignalFrame> SingleCapture(ChannelReader<SampleChunk> input, TriggerConfig config, CancellationToken ct);
     }
+    public interface IModalAnalysisService
+    {
+        public Task<ModalAnalysisReport> RunAsync(AcquisitionConfig DaqConfig, TriggerConfig TrigConfig, ModalAnalysisConfig AnalConfig, CancellationToken ct);
+    }
 }

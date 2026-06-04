@@ -93,7 +93,15 @@ namespace CncMeasurement.Core.models
 
             public double Threshold { get; set; }
     }
-        public sealed record BroacastFrame
+    public class ModalAnalysisConfig
+    {
+        public double ModeProminenceThresholddB { get; set; }
+        public double DampingFilterBandwidthPercent { get; set; }
+        public float DampingStartPeakPercent { get; set; }
+        public float DampingEndPeakPercent { get; set; }
+        public int UseNDominantModes { get; set; }
+    }
+    public sealed record BroacastFrame
         {
             List<SampleChunk> samples;
             List<RmsFrame> RmsFrames;
@@ -178,6 +186,38 @@ namespace CncMeasurement.Core.models
         string AssignedChannelName,
         double Value
     );
+
+    public sealed record ModalResults(
+    long SampleIndex,
+    DateTime TimeStampUtc,
+    ModalMode[] Modes
+);
+
+    public sealed record ModalMode(
+        double FrequencyHz,
+        ModalModeChannel[] Channels
+    );
+
+    public sealed record ModalModeChannel(
+        string AssignedChannelName,
+        double PsdAtMode,
+        double FftMagnitudeAtMode,
+        double DecayTime,
+        double DampingRate,
+        double DampingRegressionQuality
+    );
+
+    /// <summary>
+    /// Report that will be sent to client api for display
+    /// More detailed information will be stored in Excel readable format
+    /// </summary>
+    public sealed record ModalAnalysisReport
+    (
+        ModalResults NumericalResults,
+        FftFrame SignalFFT,
+        SignalFrame SignalRaw
+    );
+
 }
 
 
