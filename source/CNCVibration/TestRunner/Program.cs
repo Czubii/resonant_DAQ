@@ -78,16 +78,17 @@ namespace TestRunner
             {
                 SampleRate = config.SampleRate,
                 ChannelConfigs = config.ChannelConfigs,
-                PreTriggerWindowMs = 50,
-                PostTriggerWindowMs = 200,
+                PreTriggerWindowMs = 250,
+                PostTriggerWindowMs = 250,
                 Threshold = 1.0
             };
 
             var analysisConfig = new ModalAnalysisConfig
             {
-                ModeProminenceThresholddB = 3,
-                DampingFilterBandwidthPercent = 0.1,
-                DampingSkipNAfterPeak = 1
+                ModeProminenceThresholddB = 2,
+                DampingFilterBandwidthPercent = 0.2,
+                DampingSkipNAfterPeak = 1,
+                UseNDominantModes = 8
             };
 
             var cts = new CancellationTokenSource();

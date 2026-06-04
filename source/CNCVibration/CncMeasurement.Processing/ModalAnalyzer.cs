@@ -27,8 +27,10 @@ namespace CncMeasurement.Processing
         string AssignedChannelName,
         double PsdAtMode,
         double FftMagnitudeAtMode,
+        double DecayTime,
         double DampingRate,
-        double DampingRegressionQuality
+        double DampingRegressionQuality,
+        double [] Envelope
 
     );
 
@@ -37,6 +39,7 @@ namespace CncMeasurement.Processing
         public double ModeProminenceThresholddB;
         public double DampingFilterBandwidthPercent;
         public int DampingSkipNAfterPeak;
+        public int UseNDominantModes;
     }
 
     public interface IModalAnalyzer
@@ -51,7 +54,7 @@ namespace CncMeasurement.Processing
             int nChannels = rawSignalWindow.Channels.Length;
 
             // each prominent peak is one of the modes of the structure
-            var prominentPeaks = FFTSpectrumTools.DetectCombinedSpectrumPeaks(fftFrame, config.ModeProminenceThresholddB);
+            var prominentPeaks = FFTSpectrumTools.DetectCombinedSpectrumPeaks(fftFrame, config.ModeProminenceThresholddB, config.UseNDominantModes);
             int nPeaks = prominentPeaks.Count;
 
             ModalMode[] modes = new ModalMode[prominentPeaks.Count];
@@ -94,8 +97,10 @@ namespace CncMeasurement.Processing
                         rawSignalWindow.Channels[ch].AssignedChannelName,
                         fftFrame.Channels[ch].PSDMagnitudes[peakIdx],
                         fftFrame.Channels[ch].Magnitudes[peakIdx],
+                        damping.DecayTime,
                         damping.DampingRatio,
-                        damping.R2
+                        damping.R2,
+                        envelope
                     );
                 }
 

@@ -10,7 +10,9 @@ namespace CncMeasurement.Processing
 {
     public static class WaveformTools
     {
-        public static (double R2, double DampingRatio) EstimateModeDamping(double[] envelope, double sampleRateHz, double modeFrequencyHz, int skipFirstN)
+        public static (double R2, double DampingRatio, double DecayTime) EstimateModeDamping(
+            double[] envelope, double sampleRateHz, double modeFrequencyHz, 
+            float StartPercentOfPeak = 0.9f, float StopPercentOfPeak = 0.05f)
         {
             int nSamples = envelope.Length;
 
@@ -26,10 +28,39 @@ namespace CncMeasurement.Processing
                 }
             }
 
-            int startIdx = envelopePeakIdx + skipFirstN;
+            // calculate regression bounds:
 
-            if (startIdx >= nSamples - 2) return (0.0, 0.0);
-                //throw new ArgumentException("Not enough decay samples.");
+            var startThreshold = StartPercentOfPeak * envelopePeakVal;
+            var endThreshold = StopPercentOfPeak * envelopePeakVal;
+
+            int startIdx = envelopePeakIdx;
+            int endIdx = nSamples - 1;
+
+            bool foundStart = false;
+
+            for (int i = envelopePeakIdx; i < nSamples; i++) // find the start index
+            {
+                if (envelope[i] <= startThreshold)
+                {
+                    startIdx = i;
+                    foundStart = true;
+                    break;
+                }
+            }
+
+            if (!foundStart)
+                startIdx = envelopePeakIdx;
+
+            for (int i = startIdx; i < nSamples; i++) // find the end index
+            {
+                if (envelope[i] <= endThreshold)
+                {
+                    endIdx = i;
+                    break;
+                }
+            }
+            if (endIdx - startIdx < 10) // lets say we need at least 10 samples to provide good enough estimate
+                return (0, 0, 0);
 
             // linear regression accumulators
             double sumT = 0.0;
@@ -43,14 +74,14 @@ namespace CncMeasurement.Processing
             List<double> tList = new();
             List<double> yList = new();
 
-            for (int i = startIdx; i < nSamples; i++)
+            for (int i = startIdx; i < endIdx; i++)
             {
                 double a = envelope[i];
 
                 if (a <= 0.0)
                     continue;
 
-                double t = i / sampleRateHz;
+                double t = (i - startIdx) / sampleRateHz;
                 double y = Math.Log(a);
 
                 tList.Add(t);
@@ -64,8 +95,7 @@ namespace CncMeasurement.Processing
                 count++;
             }
 
-            if (count < 2)
-                throw new ArgumentException("Not enough valid samples.");
+            if (count < 3) return (0, 0, 0);
 
             double slope =
                 (count * sumTY - sumT * sumY) /
@@ -94,9 +124,12 @@ namespace CncMeasurement.Processing
                 ssTot += (y - meanY) * (y - meanY);
             }
 
-            double r2 = (ssTot <= 0.0) ? 0.0 : (1.0 - ssRes / ssTot);
+            double r2 = ssTot <= 0 ? 0 : 1.0 - ssRes / ssTot;
 
-            return (r2, dampingRatio);
+            // 6. decay time constant
+            double decayTime = slope == 0 ? 0 : -1.0 / slope;
+
+            return (r2, dampingRatio, decayTime);
         }
     }
 }
