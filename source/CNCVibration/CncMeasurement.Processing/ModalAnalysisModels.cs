@@ -2,6 +2,11 @@
 
 namespace CncMeasurement.Processing
 {
+    public enum ReportDetailLevel
+    {
+        Simple,
+        Full
+    }
     public sealed record ModalAnalysisReportInternal
     (
         ModalResultsInternal NumericalResults,
@@ -27,7 +32,8 @@ namespace CncMeasurement.Processing
         double DecayTime,
         double DampingRate,
         double DampingRegressionQuality,
-        double[] Envelope
+        double[]? Envelope,
+        double[]? ModeTimeSignal
 
     );
     public static class ModalMapping

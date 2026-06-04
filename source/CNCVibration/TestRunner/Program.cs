@@ -19,7 +19,81 @@ namespace TestRunner
     {
         static async Task Main(string[] args)
         {
-            await ExemplaryImpulseResponsePipeline();
+            await ConsoleUiLoop();
+        }
+        static async Task ConsoleUiLoop()
+        {
+            var cts = new CancellationTokenSource();
+
+            while (true)
+            {
+                Console.WriteLine("\n=== CNC Measurement Console ===");
+                Console.WriteLine("1 - Run single measurement");
+                Console.WriteLine("2 - Test device discovery");
+                Console.WriteLine("3 - Run continuous measurements");
+                Console.WriteLine("4 - Stop continuous run");
+                Console.WriteLine("q - Quit");
+                Console.Write("Select: ");
+
+                var input = Console.ReadLine();
+
+                switch (input)
+                {
+                    case "1":
+                        await RunSingleMeasurement(cts.Token);
+                        break;
+
+                    case "2":
+                        TestDiscovery();
+                        break;
+
+                    case "3":
+                        cts = new CancellationTokenSource();
+                        _ = RunContinuousMeasurements(cts.Token);
+                        break;
+
+                    case "4":
+                        cts.Cancel();
+                        Console.WriteLine("Stopping continuous run...");
+                        break;
+
+                    case "q":
+                        cts.Cancel();
+                        return;
+
+                    default:
+                        Console.WriteLine("Unknown command.");
+                        break;
+                }
+            }
+        }
+        static async Task RunSingleMeasurement(CancellationToken token)
+        {
+            Console.WriteLine("Running single measurement...");
+
+            await ExemplaryImpulseResponsePipeline(token);
+
+            Console.WriteLine("Measurement finished.");
+        }
+        static async Task RunContinuousMeasurements(CancellationToken token)
+        {
+            Console.WriteLine("Continuous mode started. Press '4' to stop.");
+
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    await ExemplaryImpulseResponsePipeline(token);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+
+                Console.WriteLine("Cycle complete. Restarting...\n");
+            }
+
+            Console.WriteLine("Continuous mode stopped.");
         }
         static void TestDiscovery()
         {
@@ -37,7 +111,7 @@ namespace TestRunner
             }
         }
 
-        static async Task ExemplaryImpulseResponsePipeline()
+        static async Task ExemplaryImpulseResponsePipeline(CancellationToken token)
         {
             var config = new AcquisitionConfig
             {
@@ -92,8 +166,6 @@ namespace TestRunner
                 UseNDominantModes = 8
             };
 
-            var cts = new CancellationTokenSource();
-
             IDataAcquisitionService daq = new ModalAcquisitionService();
             IModalAnalyzer analyzer = new ModalAnalyzer();
             ITriggerWindowCapture trigger = new SingleTriggerWindowCapture();
@@ -101,7 +173,7 @@ namespace TestRunner
 
             var modalService = new ModalAnalysisService(daq, analyzer, trigger, reportBuilder);
 
-            var results = await modalService.RunAsync(config, triggerConfig, analysisConfig, cts.Token);
+            var results = await modalService.RunAsync(config, triggerConfig, analysisConfig, token);
 
 
         }

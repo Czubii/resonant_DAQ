@@ -69,7 +69,7 @@ namespace CncMeasurement.Processing
                 // Signal processing
                 var spectrum = FFTConverter.ComputeFrame(rawFrame);
 
-                var analysisResults = _analyzer.Analyze(rawFrame, spectrum, AnalConfig);
+                var analysisResults = _analyzer.Analyze(rawFrame, spectrum, AnalConfig, ReportDetailLevel.Simple);
 
                 var report = new ModalAnalysisReportInternal
                 (

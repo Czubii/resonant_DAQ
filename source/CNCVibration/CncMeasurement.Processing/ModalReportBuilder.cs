@@ -94,12 +94,25 @@ namespace CncMeasurement.Processing
         }
         private static void BuildEnvelopeSheet(XLWorkbook wb, ModalAnalysisReportInternal results)
         {
-            var ws = wb.Worksheets.Add("Envelopes");
+            bool hasEnvelope = results.NumericalResults.Modes
+                .SelectMany(m => m.Channels)
+                .Any(c => c.Envelope != null);
+
+            bool hasSignal = results.NumericalResults.Modes
+                .SelectMany(m => m.Channels)
+                .Any(c => c.ModeTimeSignal != null);
+
+            // If nothing to export → do not create sheet
+            if (!hasEnvelope && !hasSignal)
+                return;
+
+            var ws = wb.Worksheets.Add("Filtered Modes");
 
             ws.Cell(1, 1).Value = "Mode Frequency [Hz]";
             ws.Cell(1, 2).Value = "Channel";
             ws.Cell(1, 3).Value = "Time [s]";
-            ws.Cell(1, 4).Value = "Envelope Value";
+            ws.Cell(1, 4).Value = "Envelope";
+            ws.Cell(1, 5).Value = "Mode Signal";
 
             int row = 2;
             var sampleRate = results.SignalRaw.SampleRateHz;
@@ -108,22 +121,35 @@ namespace CncMeasurement.Processing
             {
                 foreach (var channel in mode.Channels)
                 {
-                    for (int i = 0; i < channel.Envelope.Length; i++)
+                    int maxLen =
+                        Math.Max(
+                            channel.Envelope?.Length ?? 0,
+                            channel.ModeTimeSignal?.Length ?? 0);
+
+                    if (maxLen == 0)
+                        continue;
+
+                    for (int i = 0; i < maxLen; i++)
                     {
                         ws.Cell(row, 1).Value = mode.FrequencyHz;
                         ws.Cell(row, 2).Value = channel.AssignedChannelName;
-                        ws.Cell(row, 3).Value = i/sampleRate;
-                        ws.Cell(row, 4).Value = channel.Envelope[i];
+                        ws.Cell(row, 3).Value = i / sampleRate;
+
+                        if (channel.Envelope != null && i < channel.Envelope.Length)
+                            ws.Cell(row, 4).Value = channel.Envelope[i];
+
+                        if (channel.ModeTimeSignal != null && i < channel.ModeTimeSignal.Length)
+                            ws.Cell(row, 5).Value = channel.ModeTimeSignal[i];
 
                         row++;
                     }
                 }
             }
 
-            var table = ws.Range(1, 1, row - 1, 4)
+            var table = ws.Range(1, 1, row - 1, 5)
                 .CreateTable();
 
-            table.Name = "EnvelopeTable";
+            table.Name = "ModalSignalTable";
             table.Theme = XLTableTheme.TableStyleMedium6;
 
             ws.Columns().AdjustToContents();
