@@ -153,7 +153,7 @@ namespace TestRunner
                     },
                     new ChannelConfig
                     {
-                        PhysicalChannelName = "cDAQ1Mod1/ai1",
+                        PhysicalChannelName = "cDAQ1Mod1/ai2",
                         NameToAssignToChannel = "Accel Z",
                         MinRange = -50,
                         MaxRange = 50,
@@ -174,9 +174,9 @@ namespace TestRunner
             var analysisConfig = new ModalAnalysisConfig
             {
                 ModeProminenceThresholddB = 2,
-                DampingFilterBandwidthPercent = 0.2,
+                DampingFilterBandwidthPercent = 0.1,
                 DampingStartPeakPercent = 0.95f,
-                DampingEndPeakPercent = 0.05f,
+                DampingEndPeakPercent = 0.15f,
                 UseNDominantModes = 8
             };
 

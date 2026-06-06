@@ -69,13 +69,16 @@ namespace CncMeasurement.Processing
                 // Signal processing
                 var spectrum = FFTConverter.ComputeFrame(rawFrame);
 
-                var analysisResults = _analyzer.Analyze(rawFrame, spectrum, AnalConfig, ReportDetailLevel.Simple);
+                var analysisResults = _analyzer.Analyze(rawFrame, spectrum, AnalConfig, ReportDetailLevel.Full);
 
                 var report = new ModalAnalysisReportInternal
                 (
                     analysisResults,
                     spectrum,
-                    rawFrame
+                    rawFrame,
+                    DaqConfig,
+                    TrigConfig,
+                    AnalConfig
                 );
 
                 await _reportBuilder.BuildAsync(report, $"Reports/modal_report_{DateTime.UtcNow:yyyyMMdd_HHmmss}.xlsx", ct);

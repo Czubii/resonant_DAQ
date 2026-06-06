@@ -11,7 +11,10 @@ namespace CncMeasurement.Processing
     (
         ModalResultsInternal NumericalResults,
         FftFrame SignalFFT,
-        SignalFrame SignalRaw
+        SignalFrame SignalRaw,
+        AcquisitionConfig AcquisitionConfig,
+        TriggerConfig TriggerConfig,
+        ModalAnalysisConfig AnalysisConfig
     );
 
     public sealed record ModalResultsInternal(
