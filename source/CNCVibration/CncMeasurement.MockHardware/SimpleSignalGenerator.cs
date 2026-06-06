@@ -10,7 +10,7 @@ namespace CncMeasurement.MockHardware
     /// Used for generating some test data to test the processing and main pipelines. 
     /// Doesn't generate the tdms output
     /// </summary>
-    public class MockDataAcquisitionService: IDataAcquisitionService
+    public class SimpleSignalGenerator: IDataAcquisitionService
     {
         private Channel<SampleChunk> _channel = Channel.CreateUnbounded<SampleChunk>();
         public ChannelReader<SampleChunk> Reader => _channel.Reader;

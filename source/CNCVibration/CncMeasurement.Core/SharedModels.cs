@@ -84,58 +84,139 @@ namespace CncMeasurement.Core.models
             public float SampleRate { get; set; } //= 10240.0;
             public int ChunkSize { get; set; } // optimal value will depend on sample rate. For 10kS/s 4096 should be an okay starting value
         }
-        public sealed record BroacastFrame
+        public class TriggerConfig
+        {
+            public double SampleRate { get; set; }
+            public List<ChannelConfig> ChannelConfigs { get; set; }
+            public int PreTriggerWindowMs { get; set; }
+            public int PostTriggerWindowMs { get; set; }
+
+            public double Threshold { get; set; }
+    }
+    public class ModalAnalysisConfig
+    {
+        public double ModeProminenceThresholddB { get; set; }
+        public double DampingFilterBandwidthPercent { get; set; }
+        public float DampingStartPeakPercent { get; set; }
+        public float DampingEndPeakPercent { get; set; }
+        public int UseNDominantModes { get; set; }
+    }
+    public sealed record BroacastFrame
         {
             List<SampleChunk> samples;
             List<RmsFrame> RmsFrames;
             List<FftFrame> FftFrames;
 
         }
-        public sealed record SampleChunk
+        public sealed record SampleChunk // Used for sample transport between daq an windowing/trigger layers
         (
             long SampleIndex,
             int NumChannels,
             string[] AssignedChannelNames,
             int NumSamples,
             double SampleRate,
-            DateTime TimeStamp, //Start of the window
+            DateTime TimeStamp, //Start of the Chunk
             double[,] Samples
         );
-        public sealed record RmsFrame
-        (
-            long SampleIndex,
-            DateTime Timestamp, //Start of the window
-            RmsChannel[] Channels
-        );
-        public sealed record RmsChannel
-        (
-            string AssignedChannelName,
-            double Value
-        );
 
-        public sealed record FftBin
-        (
-            double Magnitude
-        );
-        public sealed record FftChannel
-        (
-            string AssignedChannelName,
-            FftBin[] Bins
-        );
-        public sealed record FftFrame
-        (
-            long SampleIndex,
-            int FFTSize,
-            double[] Frequencies,
-            DateTime TimeStamp, //Start of the window
-            FftChannel[] Channels
-        );
-        public record PostProcessingResult
-        {
-        float RPM;
-        List<float> DominantFrequencies;
-        List<float> Magnitude;
-        }
+    public sealed record SignalFrame // Used for measurement transport between windowing/trigger layers and processing
+    (
+        long SampleIndex,
+        double SampleRateHz,
+        DateTime TimeStamp, //Start of the window
+        SignalChannel[] Channels
+    );
+    public sealed record SignalChannel
+    (
+       string AssignedChannelName,
+       double[] Samples
+    );
+
+    public sealed record FftFrame
+    (
+        long SampleIndex,
+        int FFTSize,
+        double[] FrequenciesHz,
+        DateTime TimeStamp, //Start of the window
+        FftChannel[] Channels
+    );
+    public sealed record FftChannel
+    (
+        string AssignedChannelName,
+        double[] Magnitudes, // Magnitudes here approximate peak amplitude of sinusoidal component at frequency k
+
+        // Computation:
+        // - The time-domain signal x[n] (length = nRaw samples) is multiplied by a Hann window w[n].
+        // - The windowed data is zero-padded to NFFT = FFTSize.
+        // - A complex FFT is computed; X[k] is the FFT result.
+        // - Magnitudes are computed as |X[k]| and scaled by:
+        //      (1 / sum(w)) * S(k)
+        //   where S(k) is the single-sided correction:
+        //      S(0) = 1 (DC),
+        //      S(NFFT/2) = 1 (Nyquist, if present),
+        //      S(k) = 2 otherwise.
+        //
+        // Interpretation:
+        // - Units match the time-domain input samples (e.g., m/s^2 for acceleration).
+        // - For a bin-centered sinusoid, this scaling approximates the sinusoid’s PEAK amplitude.
+        // - Not a density: values are not "per Hz" and depend on window/scaling choices.
+
+        double[] PSDMagnitudes
+        // Computation:
+        // - Uses the same FFT X[k] as above.
+        // - Window power normalization uses sum(w^2).
+        // - PSD is computed as:
+        //      PSD[k] = (|X[k]|^2 / (SampleRate * sum(w^2))) * S(k)
+        //   with the same single-sided correction S(k) as for Magnitudes
+        //   (DC and Nyquist are not doubled; interior bins are doubled).
+        //
+        // Interpretation:
+        // - Units are (input units)^2/Hz.
+        // - PSD is the preferred quantity for comparing spectral levels across different
+        //   record lengths / FFT sizes and for averaging across repeated impacts or time windows.
+    );
+    public sealed record RmsFrame
+    (
+        long SampleIndex,
+        DateTime Timestamp, //Start of the window
+        RmsChannel[] Channels
+    );
+    public sealed record RmsChannel
+    (
+        string AssignedChannelName,
+        double Value
+    );
+
+    public sealed record ModalResults(
+    long SampleIndex,
+    DateTime TimeStampUtc,
+    ModalMode[] Modes
+);
+
+    public sealed record ModalMode(
+        double FrequencyHz,
+        ModalModeChannel[] Channels
+    );
+
+    public sealed record ModalModeChannel(
+        string AssignedChannelName,
+        double PsdAtMode,
+        double FftMagnitudeAtMode,
+        double DecayTime,
+        double DampingRate,
+        double DampingRegressionQuality
+    );
+
+    /// <summary>
+    /// Report that will be sent to client api for display
+    /// More detailed information will be stored in Excel readable format
+    /// </summary>
+    public sealed record ModalAnalysisReport
+    (
+        ModalResults NumericalResults,
+        FftFrame SignalFFT,
+        SignalFrame SignalRaw
+    );
 
 }
 
