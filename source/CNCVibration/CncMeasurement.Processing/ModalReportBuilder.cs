@@ -32,6 +32,8 @@ namespace CncMeasurement.Processing
             BuildEnvelopeSheet(wb, report);
             BuildRawSignalSheet(wb, report.SignalRaw);
 
+            BuildConfigurationSheet(wb, report.AcquisitionConfig, report.TriggerConfig, report.AnalysisConfig);
+
             wb.SaveAs(outputPath);
 
             return Task.FromResult(outputPath);
@@ -230,6 +232,51 @@ namespace CncMeasurement.Processing
                     ws.Cell(i + 2, ch + 2).Value = signal.Channels[ch].Samples[i];
                 }
             }
+
+            ws.Columns().AdjustToContents();
+        }
+
+        private static void BuildConfigurationSheet(
+            XLWorkbook wb,
+            AcquisitionConfig acq,
+            TriggerConfig trig,
+            ModalAnalysisConfig analysis)
+        {
+            var ws = wb.Worksheets.Add("Configuration");
+
+            int row = 1;
+
+            ws.Cell(row++, 1).Value = "ACQUISITION CONFIG";
+            ws.Cell(row++, 1).Value = $"Sample Rate: {acq.SampleRate}";
+            ws.Cell(row++, 1).Value = $"Chunk Size: {acq.ChunkSize}";
+            ws.Cell(row++, 1).Value = $"Group Name: {acq.GroupName}";
+            ws.Cell(row++, 1).Value = $"Output Path: {acq.OutputTDMSPath}";
+
+            row++;
+
+            ws.Cell(row++, 1).Value = "CHANNEL CONFIGS";
+
+            foreach (var ch in acq.ChannelConfigs)
+            {
+                ws.Cell(row++, 1).Value =
+                    $"{ch.NameToAssignToChannel} | {ch.PhysicalChannelName} | Range: {ch.MinRange}..{ch.MaxRange} | Sensitivity: {ch.Sensitivity}";
+            }
+
+            row++;
+
+            ws.Cell(row++, 1).Value = "TRIGGER CONFIG";
+            ws.Cell(row++, 1).Value = $"Pre-trigger (ms): {trig.PreTriggerWindowMs}";
+            ws.Cell(row++, 1).Value = $"Post-trigger (ms): {trig.PostTriggerWindowMs}";
+            ws.Cell(row++, 1).Value = $"Threshold: {trig.Threshold}";
+
+            row++;
+
+            ws.Cell(row++, 1).Value = "ANALYSIS CONFIG";
+            ws.Cell(row++, 1).Value = $"Prominence (dB): {analysis.ModeProminenceThresholddB}";
+            ws.Cell(row++, 1).Value = $"Damping Bandwidth (%): {analysis.DampingFilterBandwidthPercent}";
+            ws.Cell(row++, 1).Value = $"Start Peak %: {analysis.DampingStartPeakPercent}";
+            ws.Cell(row++, 1).Value = $"End Peak %: {analysis.DampingEndPeakPercent}";
+            ws.Cell(row++, 1).Value = $"N Modes: {analysis.UseNDominantModes}";
 
             ws.Columns().AdjustToContents();
         }
