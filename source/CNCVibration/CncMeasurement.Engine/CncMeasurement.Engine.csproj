@@ -14,11 +14,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\CncMeasure.Machine\CncMeasurement.Machine.csproj" />
 		<ProjectReference Include="..\CncMeasurement.Core\CncMeasurement.Core.csproj" />
-		<ProjectReference Include="..\CncMeasurement.Data\CncMeasurement.Data.csproj" />
-		<ProjectReference Include="..\CncMeasurement.Hardware\CncMeasurement.Hardware.csproj" />
-		<ProjectReference Include="..\CncMeasurement.Processing\CncMeasurement.Processing.csproj" />
 	</ItemGroup>
 
 </Project>

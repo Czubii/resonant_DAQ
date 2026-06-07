@@ -5,7 +5,7 @@ namespace CncMeasurement.Machine
     
     public class MachineController : IMachineController
     {
-        public void RunContinous(int RPM, float DurationSeconds)
+        public void RunContinous(int RPM)
         {
             throw new NotImplementedException();
         }
@@ -16,6 +16,11 @@ namespace CncMeasurement.Machine
         }
 
         public Task SetYPosition(double yPosition)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task Stop()
         {
             throw new NotImplementedException();
         }

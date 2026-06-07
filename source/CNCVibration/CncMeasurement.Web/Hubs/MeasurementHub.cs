@@ -48,17 +48,16 @@ namespace CncMeasurement.Web.Hubs
 
     public class SignalRMeasurementBroadcaster : IMeasurementBroadcaster
     {
-        private readonly IHubContext<LiveMeasurementHub> _hubContext;
+        private readonly IHubContext<LiveMeasurementHub, IMeasurementClient> _hubContext;
 
-        public SignalRMeasurementBroadcaster(IHubContext<LiveMeasurementHub> hubContext)
+        public SignalRMeasurementBroadcaster(IHubContext<LiveMeasurementHub, IMeasurementClient> hubContext)
         {
             _hubContext = hubContext;
         }
 
         public async Task BroadcastMeasurementAsync(SampleChunk data, CancellationToken ct)
         {
-            
-            await _hubContext.Clients.Group(LiveMeasurementHub.LiveViewersGroup).SendAsync("ReceiveMeasurement", data, ct);
+            await _hubContext.Clients.Group(LiveMeasurementHub.LiveViewersGroup).ReceiveMeasurement(data);
         }
     }
 }

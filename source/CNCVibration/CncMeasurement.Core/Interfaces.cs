@@ -19,8 +19,9 @@ namespace CncMeasurement.Core.Interfaces
     }
     public interface IEngine
     {
-        void LoadExperiment(ExperimentSetup Setup);
-        Task RunExperiment(ChannelReader<SampleChunk> Reader, CancellationToken ct);
+        
+        Task LoadExperiment(ExperimentSetup Setup);
+        Task RunExperiment(CancellationToken ct);
 
     }
     public interface IDatabaseController
@@ -28,15 +29,9 @@ namespace CncMeasurement.Core.Interfaces
         void InitializeContext();
         Task StartLogLiveExperiment(ExperimentSetup setup, ChannelReader<RmsFrame> RMSreader, ChannelReader<FftFrame> FFTreader);
         Task StopLog();
-        DBinfo listCollections();
         
       
         void ClearDatabase();
-        MeasurementMetadata GetMeasurementByID(int measurementID);
-
-        List<BriefMeasurementInfo> GetMeasurementSummaries();
-        ValueTask QueueForSavingAsync(SampleChunk data, CancellationToken ct);
-        ValueTask QueueForSavingSweepAsync(SampleChunk data, CancellationToken ct);
 
     }
     public interface IMachineController

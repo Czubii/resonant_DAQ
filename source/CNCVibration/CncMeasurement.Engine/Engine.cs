@@ -1,8 +1,5 @@
 ﻿using CncMeasurement.Core.models;
 using CncMeasurement.Core.Interfaces;
-using CncMeasurement.Data;
-using CncMeasurement.Machine;
-using CncMeasurement.Processing;
 using System.Diagnostics.Contracts;
 using System.Threading.Channels;
 using System.Runtime.CompilerServices;
@@ -13,16 +10,19 @@ namespace CncMeasurement.Engine
     public class Engine : IEngine
     {
 
-        IMachineController _machineController;
-        IDatabaseController _databaseController;
-        ILiveSignalProcessor _processor;
+        IMachineController _machineController {  get; set; }
+        IDatabaseController _databaseController { get; set; }
+        ILiveSignalProcessor _processor { get; set; }
+        //IMeasurementBroadcaster _broadcaster;
+        IDataAcquisitionService _DAQ {  get; set; }
         IMeasurementBroadcaster _broadcaster;
-        IDataAcquisitionService _DAQ;
-        public Engine(IMachineController machinecontroller, IDatabaseController databaseController, ILiveSignalProcessor processor, IMeasurementBroadcaster broadcaster)
+        public Engine(IMachineController machinecontroller, IDatabaseController databaseController, ILiveSignalProcessor processor, IMeasurementBroadcaster broadcaster, IDataAcquisitionService daq)
         {
             _machineController = machinecontroller;
             _databaseController = databaseController;
             _processor = processor;
+            _DAQ = daq;
+            
             _broadcaster = broadcaster;
         }
         private List<ChannelReader<SampleChunk>> _outputReaders;
@@ -40,6 +40,10 @@ namespace CncMeasurement.Engine
         /// 8. send notification about the completion
         public async Task RunExperiment(CancellationToken ct)
         {
+            if ( _setup == null)
+            {
+                throw new Exception("Experiment setup not initialized");
+            }
             int OutputCount = 3;
 
             //await _machineController.SetYPosition(_setup.MachineConfiguration.Y);
@@ -61,14 +65,15 @@ namespace CncMeasurement.Engine
             _databaseController.InitializeContext();
 
             
-            _DAQ.Start(_setup.MeasurementConfig, ct);
-            _machineController.RunContinous(500);
+            _ = _DAQ.Start(_setup.MeasurementConfig, ct);
+            // _machineController.RunContinous(500);
 
             
 
             // broadcast the data to the different readers
             _outputReaders = Split(_DAQ.Reader, OutputCount);
-            _processor.Start(_outputReaders[0], ct);
+            _ = _processor.Start(_outputReaders[0], ct);
+            _ = StartSignalRStreaming(_outputReaders[1], ct);
             ChannelReader<RmsFrame> RMSreader = _processor.RMSReader;
             ChannelReader<FftFrame> FFTreader = _processor.FFTReader;
 
@@ -86,7 +91,19 @@ namespace CncMeasurement.Engine
 
             
         }
-
+        private async Task StartSignalRStreaming(ChannelReader<SampleChunk> reader, CancellationToken ct)
+        {
+            try
+            {
+                await foreach (var chunk in reader.ReadAllAsync(ct))
+                {
+                    await _broadcaster.BroadcastMeasurementAsync(chunk, ct);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
         private static List<ChannelReader<SampleChunk>> Split(ChannelReader<SampleChunk> sourceReader, int outputCount)
         {
             var outputs = new Channel<SampleChunk>[outputCount];
@@ -110,8 +127,11 @@ namespace CncMeasurement.Engine
                 // Read until the source channel is marked as complete
                 await foreach (var chunk in source.ReadAllAsync())
                 {
+                    Console.WriteLine(chunk.TimeStamp);
+                    Console.WriteLine(chunk.Samples);
                     foreach (var output in outputs)
                     {
+                        
                         // Write the exact same chunk reference to all subscribers
                         await output.Writer.WriteAsync(chunk);
                     }
@@ -134,26 +154,23 @@ namespace CncMeasurement.Engine
                 
             }
         }
-        private async Task BroadcastDataSweep(ChannelReader<SampleChunk> reader, CancellationToken ct)
-        {
-            await foreach (var data in reader.ReadAllAsync(ct))
-            {
-                _processor.QueueForProcessingAsync(data, ct);
-                _databaseController.QueueForSavingAsync(data, ct);
-                _broadcaster.BroadcastMeasurementAsync(data, ct);
-            }
-        }
+        //private async Task BroadcastDataSweep(ChannelReader<SampleChunk> reader, CancellationToken ct)
+        //{
+        //    await foreach (var data in reader.ReadAllAsync(ct))
+        //    {
+        //        _processor.QueueForProcessingAsync(data, ct);
+        //        _databaseController.QueueForSavingAsync(data, ct);
+        //        _broadcaster.BroadcastMeasurementAsync(data, ct);
+        //    }
+        //}
         public Task LoadExperiment(ExperimentSetup Setup)
         {
+            _setup = Setup;
 
-            _machineController.SetYPosition(Setup.MachineConfiguration.Y);
+            // _machineController.SetYPosition(Setup.MachineConfiguration.Y);
             
             return Task.CompletedTask;
         }
 
-        void IEngine.LoadExperiment(ExperimentSetup Setup)
-        {
-            throw new NotImplementedException();
-        }
     }
 }

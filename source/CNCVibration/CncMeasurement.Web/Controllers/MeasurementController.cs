@@ -2,14 +2,69 @@
 using CncMeasurement.Core.Interfaces;
 using CncMeasurement.Data;
 using CncMeasurement.Engine;
-using CncMeasurement.Hardware;
-using CncMeasurement.Hardware.Acquisition;
 using CncMeasurement.Web.RequestPayloadSchemas;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 
 namespace CncMeasurement.Web.Controllers
 {
+    
+    [ApiController]
+    [Route("[controller]")]
+    public class RunExampleExperimentController : ControllerBase
+    {
+        private readonly IEngine _engine;
+        private ExperimentSetup _setup;
+        public RunExampleExperimentController(IEngine engine)
+        {
+            _engine = engine;
+        }
+
+        public string Get()
+        {
+            ExperimentRequest ex = new ExperimentRequest();
+            ex.Name = "Example name";
+            ex.Description = "Example description";
+            ex.MachineConfig = new MachineConfig
+            {
+                Y = 25
+            };
+            ex.MeasurementConfig = new AcquisitionConfig
+            {
+                SampleRate = 10000,
+                ChunkSize = 1000,
+                GroupName = "test",
+                OutputTDMSPath = "tetstoutput.tdms",
+                ChannelConfigs = new List<ChannelConfig>
+            {
+                new ChannelConfig
+                {
+                    PhysicalChannelName = "cDAQ1Mod1/ai0",
+                    NameToAssignToChannel = "Accel X",
+                    MinRange = -50,
+                    MaxRange = 50,
+                    Sensitivity = 100,
+
+                },
+                new ChannelConfig
+                {
+                    PhysicalChannelName = "cDAQ1Mod1/ai1",
+                    NameToAssignToChannel = "Accel Y",
+                    MinRange = -50,
+                    MaxRange = 50,
+                    Sensitivity = 100,
+                }
+            }
+            };
+
+            _setup = ex.ToExperiment();
+            _engine.LoadExperiment(_setup);
+            _engine.RunExperiment(CancellationToken.None);
+            return "running example experiment";
+        }
+
+    }
+
     [ApiController]
     [Route("[controller]")]
     public class MockEntryController : ControllerBase
@@ -49,53 +104,8 @@ namespace CncMeasurement.Web.Controllers
                     }
                 }
             };
-
-            try
-            {
-                // 3. Save it to the database
-                _dbController.AddMeasurementEntry(mockData);
-
-                // 4. Return success confirmation
-                return $"Success! Mock entry created with Timestamp: {mockData.Timestamp}";
-            }
-            catch (Exception ex)
-            {
-                // Good practice to catch errors here so you can see if the DB locked or failed
-                return $"Failed to create mock entry. Error: {ex.Message}";
-            }
+            return JsonConvert.SerializeObject(mockData);
         }
-    }
-    [ApiController]
-    [Route("[controller]")]
-    public class ListSummariesController : ControllerBase
-    {
-        private readonly IDatabaseController _dbController;
-
-        // 1. Inject the Database Controller
-        public ListSummariesController(IDatabaseController dbController)
-        {
-            _dbController = dbController;
-        }
-
-        // 2. Create the GET endpoint
-        [HttpGet(Name = "GetSummaries")]
-        public ActionResult<List<BriefMeasurementInfo>> Get()
-        {
-            try
-            {
-                // Fetch the lightweight summaries from the database
-                var summaries = _dbController.GetMeasurementSummaries();
-
-                // Return a 200 OK response containing the JSON data
-                return Ok(summaries);
-            }
-            catch (Exception ex)
-            {
-                // Safely catch any database read errors and return a 500 status code
-                return StatusCode(500, $"Internal server error: {ex.Message}");
-            }
-        }
-
     }
 
     /// <summary>
@@ -108,10 +118,12 @@ namespace CncMeasurement.Web.Controllers
         public string Get()
         {
             ExperimentRequest ex = new ExperimentRequest();
-
+            ex.Name = "Example name";
             ex.Description = "Example description";
-            ex.MachineConfig = new MachineConfig();
-            ex.MachineConfig.Y = 25;
+            ex.MachineConfig = new MachineConfig
+            {
+                Y = 25
+            };
             ex.MeasurementConfig = new AcquisitionConfig
             {
                 SampleRate = 10000,
@@ -139,7 +151,7 @@ namespace CncMeasurement.Web.Controllers
                 }
             }
             };
-            return Newtonsoft.Json.JsonConvert.SerializeObject(ex);
+            return JsonConvert.SerializeObject(ex);
         }
 
         [ApiController]
@@ -221,15 +233,13 @@ namespace CncMeasurement.Web.Controllers
          }*/
     }
 
-    [ApiController]
-    [Route("[controller]")]
-    public class GetSensorsController
-    {
-        public IDaqDiscovery _daqdiscovery { get; set; }
-        public string Get()
-        {
-            return JsonConvert.SerializeObject(_daqdiscovery.GetAvailableDevices());
-        }
-    }
+    //public class GetSensorsController
+    //{
+    //    public IDaqDiscovery _daqdiscovery { get; set; }
+    //    public string Get()
+    //    {
+    //        return JsonConvert.SerializeObject(_daqdiscovery.GetAvailableDevices());
+    //    }
+    //}
 
 }
