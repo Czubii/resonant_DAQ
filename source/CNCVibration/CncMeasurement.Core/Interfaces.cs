@@ -69,11 +69,4 @@ namespace CncMeasurement.Core.Interfaces
     {
         public Task<ModalAnalysisReport> RunAsync(AcquisitionConfig DaqConfig, TriggerConfig TrigConfig, ModalAnalysisConfig AnalConfig, CancellationToken ct);
     }
-    public interface IDatataBaseController
-    {
-        void SaveModalExperimentSchema(ModalExperimentSchema schema);
-        ModalExperimentSchema GetModalExperimentSchema(Guid id);
-        void ClearModalExperimentSchemas();
-    }
-    
 }

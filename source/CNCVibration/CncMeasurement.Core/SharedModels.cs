@@ -191,7 +191,7 @@ namespace CncMeasurement.Core.models
     long SampleIndex,
     DateTime TimeStampUtc,
     ModalMode[] Modes
-    );
+);
 
     public sealed record ModalMode(
         double FrequencyHz,
