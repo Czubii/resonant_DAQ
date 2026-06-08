@@ -10,6 +10,21 @@ namespace CncMeasurement.Web.Controllers
 {
     [ApiController]
     [Route("[controller]")]
+    public class GetDevicesController : ControllerBase
+    {
+        private readonly IDaqDiscovery _daqDiscovery;
+        public GetDevicesController(IDaqDiscovery daqDiscovery)
+        {
+            _daqDiscovery = daqDiscovery;
+        }
+        [HttpGet(Name = "GetDevices")]
+        public ActionResult<List<DeviceDescription>> Get()
+        {
+            return Ok(_daqDiscovery.GetAvailableDevices());
+        }
+    }
+    [ApiController]
+    [Route("[controller]")]
     public class UploadModalExperimentController : ControllerBase
     {
         private readonly IEngine _engine;

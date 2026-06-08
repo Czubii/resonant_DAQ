@@ -58,3 +58,8 @@ Accept: application/json
 
 GET {{CncMeasurement.Web_HostAddress}}/GetAllExperiments/
 Accept: application/json
+
+###
+
+GET {{CncMeasurement.Web_HostAddress}}/GetDevices
+Accept: application/json

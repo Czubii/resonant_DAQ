@@ -26,10 +26,11 @@ SQLitePCL.Batteries.Init();
 
 // Add services to the container.
 
-//builder.Services.AddSingleton<IDaqDiscovery, DaqDiscovery>();
+builder.Services.AddSingleton<IDaqDiscovery, MockDaqDiscovery>();
 Console.WriteLine("[Startup] Registering services in DI container...");
 builder.Services.AddSingleton<IMachineController, MachineController>();
 builder.Services.AddSingleton<IDataAcquisitionService, ModalAcquisitionService>();
+
 builder.Services.AddSingleton<IModalAnalyzer, ModalAnalyzer>();
 builder.Services.AddSingleton<IModalExcelReportBuilder, ModalExcelReportBuilder>();
 builder.Services.AddSingleton<ITriggerWindowCapture, SingleTriggerWindowCapture>();
