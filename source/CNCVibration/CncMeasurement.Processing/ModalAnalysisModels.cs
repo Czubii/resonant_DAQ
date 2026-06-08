@@ -41,12 +41,13 @@ namespace CncMeasurement.Processing
     );
     public static class ModalMapping
     {
-        public static ModalAnalysisReport ToPublic(this ModalAnalysisReportInternal src)
+        public static ModalAnalysisReport ToPublic(this ModalAnalysisReportInternal src, string path)
         {
             return new ModalAnalysisReport(
                 src.NumericalResults.ToPublic(),
                 src.SignalFFT,
-                src.SignalRaw
+                src.SignalRaw,
+                path
             );
         }
         public static ModalResults ToPublic(this ModalResultsInternal src)

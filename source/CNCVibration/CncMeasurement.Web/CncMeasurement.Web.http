@@ -1,11 +1,60 @@
 @CncMeasurement.Web_HostAddress = http://localhost:5078
 
 
-
-GET {{CncMeasurement.Web_HostAddress}}/GetSampleRequest/
+GET {{CncMeasurement.Web_HostAddress}}/RunExampleExperiment/
 Accept: application/json
 
 ###
 
-GET {{CncMeasurement.Web_HostAddress}}/RunExampleExperiment/
+GET {{CncMeasurement.Web_HostAddress}}/CheckExperimentStatus/
+Accept: application/json
+
+###
+
+### Upload modal experiment (example)
+POST {{CncMeasurement.Web_HostAddress}}/UploadModalExperiment
+Content-Type: application/json
+
+{
+  "Name": "Example Experiment",
+  "Description": "This is an example experiment setup for testing purposes. (Sent through API)",
+  "MachineConfig": { "Y": 25 },
+  "MeasurementConfig": {
+    "SampleRate": 15000,
+    "ChunkSize": 4096,
+    "GroupName": "test",
+    "OutputTDMSPath": "testoutput.tdms",
+    "ChannelConfigs": [
+      { "PhysicalChannelName": "cDAQ1Mod1/ai0", "NameToAssignToChannel": "Accel X", "MinRange": -50, "MaxRange": 50, "Sensitivity": 100 },
+      { "PhysicalChannelName": "cDAQ1Mod1/ai1", "NameToAssignToChannel": "Accel Y", "MinRange": -50, "MaxRange": 50, "Sensitivity": 100 },
+      { "PhysicalChannelName": "cDAQ1Mod1/ai2", "NameToAssignToChannel": "Accel Z", "MinRange": -50, "MaxRange": 50, "Sensitivity": 100 }
+    ]
+  },
+  "TriggerConfig": {
+    "SampleRate": 15000,
+    "ChannelConfigs": [
+      { "PhysicalChannelName": "cDAQ1Mod1/ai0", "NameToAssignToChannel": "Accel X", "MinRange": -50, "MaxRange": 50, "Sensitivity": 100 },
+      { "PhysicalChannelName": "cDAQ1Mod1/ai1", "NameToAssignToChannel": "Accel Y", "MinRange": -50, "MaxRange": 50, "Sensitivity": 100 },
+      { "PhysicalChannelName": "cDAQ1Mod1/ai2", "NameToAssignToChannel": "Accel Z", "MinRange": -50, "MaxRange": 50, "Sensitivity": 100 }
+    ],
+    "PreTriggerWindowMs": 250,
+    "PostTriggerWindowMs": 250,
+    "Threshold": 1.0
+  },
+  "AnalysisConfig": {
+    "ModeProminenceThresholddB": 2,
+    "DampingFilterBandwidthPercent": 0.1,
+    "DampingStartPeakPercent": 0.95,
+    "DampingEndPeakPercent": 0.15,
+    "UseNDominantModes": 8
+  }
+}
+
+###
+GET {{CncMeasurement.Web_HostAddress}}/GetExperiment/b45823bf-6de7-49d7-a82e-468fab8d2398
+Accept: application/json
+
+###
+
+GET {{CncMeasurement.Web_HostAddress}}/GetAllExperiments/
 Accept: application/json

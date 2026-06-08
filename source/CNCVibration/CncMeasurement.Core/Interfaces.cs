@@ -19,28 +19,29 @@ namespace CncMeasurement.Core.Interfaces
     }
     public interface IEngine
     {
-        
+        string ModalStatus();
         Task LoadExperiment(ExperimentSetup Setup);
-        Task RunExperiment(CancellationToken ct);
-
+        Task LoadExperiment(ModalAnalysisExperimentSetup Setup);
+        Task RunModalExperiment(CancellationToken ct); 
     }
     public interface IDatabaseController
     {
         void InitializeContext();
         Task StartLogLiveExperiment(ExperimentSetup setup, ChannelReader<RmsFrame> RMSreader, ChannelReader<FftFrame> FFTreader);
         Task StopLog();
-        
-      
-        void ClearDatabase();
+        void SaveModalExperimentSchema(ModalExperimentSchema schema);
 
+        ModalExperimentSchema GetModalExperimentSchema(Guid id);
+        void ClearModalExperimentSchemas();
+        Task<List<ModalExperimentSchemaSummary>> ListModalExperimentSchemaSummariesAsync();
     }
     public interface IMachineController
     {
         Task SetYPosition(double yPosition);
         Task RunSweep();
-        void RunContinous(int RPM);
+        void RunContinous(int RPM, float DurationSeconds);
 
-        Task Stop();
+        //Task Stop();
 
     }
     public interface IDataAcquisitionService: IAsyncDisposable
@@ -68,4 +69,11 @@ namespace CncMeasurement.Core.Interfaces
     {
         public Task<ModalAnalysisReport> RunAsync(AcquisitionConfig DaqConfig, TriggerConfig TrigConfig, ModalAnalysisConfig AnalConfig, CancellationToken ct);
     }
+    public interface IDatataBaseController
+    {
+        void SaveModalExperimentSchema(ModalExperimentSchema schema);
+        ModalExperimentSchema GetModalExperimentSchema(Guid id);
+        void ClearModalExperimentSchemas();
+    }
+    
 }

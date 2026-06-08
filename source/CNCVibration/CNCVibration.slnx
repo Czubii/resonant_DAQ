@@ -9,5 +9,7 @@
   <Project Path="CncMeasurement.MockHardware/CncMeasurement.MockHardware.csproj" Id="3230b9d3-c2c7-463f-b3dc-02d6a80f770b" />
   <Project Path="CncMeasurement.Processing/CncMeasurement.Processing.csproj" Id="9a0dd207-8ee8-4de7-b4ff-0b0b2e242495" />
   <Project Path="CncMeasurement.Web/CncMeasurement.Web.csproj" Id="5217d775-2cc8-4214-8e2a-389d32e96136" />
-  <Project Path="TestRunner/TestRunner.csproj" Id="2ffb884b-186f-4dff-b3c3-390a3dcec365" />
+  <Project Path="TestRunner/TestRunner.csproj" Id="2ffb884b-186f-4dff-b3c3-390a3dcec365">
+    <Build Solution="Debug|*" Project="false" />
+  </Project>
 </Solution>

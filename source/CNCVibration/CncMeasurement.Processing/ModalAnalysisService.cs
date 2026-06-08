@@ -80,11 +80,10 @@ namespace CncMeasurement.Processing
                     TrigConfig,
                     AnalConfig
                 );
+                string ReportPath = $"Reports/modal_report_{DateTime.UtcNow:yyyyMMdd_HHmmss}.xlsx";
+                await _reportBuilder.BuildAsync(report, ReportPath, ct);
 
-                await _reportBuilder.BuildAsync(report, $"Reports/modal_report_{DateTime.UtcNow:yyyyMMdd_HHmmss}.xlsx", ct);
-
-                return report.ToPublic();
-
+                return report.ToPublic(ReportPath);
             }
             finally
             {

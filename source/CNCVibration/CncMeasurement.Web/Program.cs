@@ -19,8 +19,6 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Debug);
-Console.WriteLine("[Startup] Builder created and logging configured.");
-Console.WriteLine("[Startup] Builder created.");
 string dbConnectionString = "Data Source = Measurements.db";
 
 SQLitePCL.Batteries.Init();
@@ -29,9 +27,13 @@ SQLitePCL.Batteries.Init();
 // Add services to the container.
 
 //builder.Services.AddSingleton<IDaqDiscovery, DaqDiscovery>();
+Console.WriteLine("[Startup] Registering services in DI container...");
 builder.Services.AddSingleton<IMachineController, MachineController>();
-builder.Services.AddSingleton<ILiveSignalProcessor, LiveSignalProcessor>();
-builder.Services.AddSingleton<IDataAcquisitionService, MockDataAcquisitionService >();
+builder.Services.AddSingleton<IDataAcquisitionService, ModalAcquisitionService>();
+builder.Services.AddSingleton<IModalAnalyzer, ModalAnalyzer>();
+builder.Services.AddSingleton<IModalExcelReportBuilder, ModalExcelReportBuilder>();
+builder.Services.AddSingleton<ITriggerWindowCapture, SingleTriggerWindowCapture>();
+builder.Services.AddSingleton<IModalAnalysisService, ModalAnalysisService>();
 
 // 2. Register the DatabaseController using a Factory pattern.
 // Because it needs a specific string (dbConnectionString), we tell the container exactly how to build it.
@@ -44,7 +46,7 @@ builder.Services.AddSingleton<IMeasurementBroadcaster, SignalRMeasurementBroadca
 
 
 builder.Services.AddSingleton<IEngine, Engine>();
-
+Console.WriteLine("[Startup] Services registered.");
 
 builder.Services.AddSignalR();
 
@@ -69,21 +71,8 @@ builder.Services.AddCors(options =>
     });
 });
 
-Console.WriteLine("[Startup] Calling builder.Build() (wrapped in Task with 10s probe)...");
-WebApplication app = null!
-;
-var buildTask = Task.Run(() => builder.Build());
-if (!buildTask.Wait(TimeSpan.FromSeconds(10)))
-{
-    Console.WriteLine("[Startup] builder.Build() is taking longer than 10s. Listing loaded assemblies for diagnosis:");
-    foreach (var a in AppDomain.CurrentDomain.GetAssemblies())
-    {
-        Console.WriteLine($"  Assembly: {a.GetName().Name} {a.FullName}");
-    }
-    Console.WriteLine("[Startup] Still waiting for builder.Build() to complete...");
-}
-app = buildTask.Result; // will re-throw any exceptions
-Console.WriteLine("[Startup] builder.Build() returned.");
+
+var app = builder.Build();
 
 app.UseCors("AllowAll");
 
@@ -107,5 +96,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-app.MapHub<LiveMeasurementHub>("/hubs/live-measurements");
+app.MapHub<LiveMeasurementHub>("/live-measurements");
+
+Console.WriteLine("[Startup] Startup successful. Running the application");
 app.Run();
