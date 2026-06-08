@@ -20,7 +20,7 @@ Content-Type: application/json
   "Description": "This is an example experiment setup for testing purposes. (Sent through API)",
   "MachineConfig": { "Y": 25 },
   "MeasurementConfig": {
-    "SampleRate": 15000,
+    "SampleRate": 7500,
     "ChunkSize": 4096,
     "GroupName": "test",
     "OutputTDMSPath": "testoutput.tdms",
@@ -31,7 +31,7 @@ Content-Type: application/json
     ]
   },
   "TriggerConfig": {
-    "SampleRate": 15000,
+    "SampleRate": 7500,
     "ChannelConfigs": [
       { "PhysicalChannelName": "cDAQ1Mod1/ai0", "NameToAssignToChannel": "Accel X", "MinRange": -50, "MaxRange": 50, "Sensitivity": 100 },
       { "PhysicalChannelName": "cDAQ1Mod1/ai1", "NameToAssignToChannel": "Accel Y", "MinRange": -50, "MaxRange": 50, "Sensitivity": 100 },
@@ -51,7 +51,7 @@ Content-Type: application/json
 }
 
 ###
-GET {{CncMeasurement.Web_HostAddress}}/GetExperiment/b45823bf-6de7-49d7-a82e-468fab8d2398
+GET {{CncMeasurement.Web_HostAddress}}/GetExperiment/abd61e73-4307-4e61-b7cf-3e3e41f104fa
 Accept: application/json
 
 ###
