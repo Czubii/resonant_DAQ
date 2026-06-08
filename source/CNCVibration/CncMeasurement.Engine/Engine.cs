@@ -17,6 +17,8 @@ namespace CncMeasurement.Engine
 
         IDataAcquisitionService _DAQ {  get; set; }
 
+        IDaqDiscovery _discovery;
+
         IModalAnalysisService _analyzer { get; set; }
 
         IMeasurementBroadcaster _broadcaster;
