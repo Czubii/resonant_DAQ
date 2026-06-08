@@ -1,5 +1,4 @@
 ﻿using System;
-using System.IO;
 using System.IO.Ports;
 using System.Text;
 using System.Threading;
@@ -20,8 +19,8 @@ namespace CncMeasurement.Machine
 
         public MachineController(string portName = "COM3", int baudRate = 115200)
         {
-            Directory.CreateDirectory(_gcodeDirectory);
-            InitializeSerialPort(portName, baudRate);
+            //Directory.CreateDirectory(_gcodeDirectory);
+            //InitializeSerialPort(portName, baudRate);
         }
 
         private void InitializeSerialPort(string portName, int baudRate)
@@ -36,7 +35,6 @@ namespace CncMeasurement.Machine
                 Handshake = Handshake.None,
                 NewLine = "\r\n"
             };
-
             _serialPort.DataReceived += SerialPort_DataReceived;
 
             try

@@ -54,7 +54,7 @@ namespace CncMeasurement.Data
                     for (int i = 0; i < half; i++)
                     {
                         await _fftwriter.WriteLineAsync(
-                            $"{frame.TimeStamp:o},{frame.SampleIndex},{ch.AssignedChannelName},{frame.FrequenciesHz[i]},{ch.Magnitudes[i].Magnitude}");
+                            $"{frame.TimeStamp:o},{frame.SampleIndex},{ch.AssignedChannelName},{frame.FrequenciesHz[i]},{ch.Magnitudes[i]}");
                     }
                 }
             }

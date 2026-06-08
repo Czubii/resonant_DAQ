@@ -7,11 +7,10 @@ using System.Threading.Tasks;
 
 namespace CncMeasurement.Data
 {
-    internal class ExperimentSchema : ExperimentSetup
+    public static class DBschemas
     {
-        public List<PostProcessingResult> ProcessingResults { get; set; }
-        public List<DateTime> PeakStamps { get; set; }
-        public List<string> FFTpaths { get; set; }
-        public List<string> RMSpaths { get; set; }
+        // Add SQL for creating ModalExperimentSchemas table
+        public const string CreateExperimentTable = "CREATE TABLE IF NOT EXISTS ModalExperimentSchemas (Id TEXT PRIMARY KEY, Json TEXT NOT NULL);";
     }
 }
+

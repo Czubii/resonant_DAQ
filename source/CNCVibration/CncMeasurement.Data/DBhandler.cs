@@ -5,12 +5,15 @@ using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json; // Swapped to Newtonsoft.Json
 using System;
 using System.Collections.Generic;
+
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices.Marshalling;
 using System.Text;
 using System.Threading.Channels;
 using System.Threading.Tasks;
+using CncMeasurement.Core;
 
 namespace CncMeasurement.Data
 {
@@ -26,6 +29,8 @@ namespace CncMeasurement.Data
             var path = Environment.GetFolderPath(folder);
             DbPath = Path.Join(path, "Measurements.db");
         }
+
+        
         protected override void OnConfiguring(DbContextOptionsBuilder options)
         {
             options.UseSqlite($"Data Source={DbPath}");
@@ -38,9 +43,16 @@ namespace CncMeasurement.Data
         ExperimentSetup _currentExperiment;
         MeasurementContext _context;
         private readonly string DBpath;
+        private static readonly JsonSerializerSettings JsonSettings = new JsonSerializerSettings
+        {
+            MissingMemberHandling = MissingMemberHandling.Ignore,
+            NullValueHandling = NullValueHandling.Ignore,
+            DateParseHandling = DateParseHandling.DateTimeOffset
+        };
         public DatabaseController(string path)
         {
             DBpath = path;
+            EnsureDatabase();
         }
         public void InitializeContext()
         {
@@ -56,7 +68,104 @@ namespace CncMeasurement.Data
             await RMSTask;
             await FFTTask;
         }
+        // Returns a JSON string containing an array of summaries (Id, Name, Description, MachineConfig)
+        public string ListModalExperimentSchemaSummariesJson()
+        {
+            Console.WriteLine("[Database] Fetching modal experiment schema summaries from database...");
+            var summaries = new List<ModalExperimentSchemaSummary>();
 
+            using (var conn = GetConnection())
+            {
+                conn.Open();
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT Id, Json FROM ModalExperimentSchemas;";
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            var idStr = reader.IsDBNull(0) ? null : reader.GetString(0);
+                            var json = reader.IsDBNull(1) ? null : reader.GetString(1);
+
+                            if (string.IsNullOrWhiteSpace(idStr) || string.IsNullOrWhiteSpace(json))
+                            {
+                                Console.WriteLine($"[Database] Skipping entry with missing ID or JSON: ID='{idStr}'");
+                                continue;
+                            }
+                            try
+                            {
+                                var schema = JsonConvert.DeserializeObject<ModalExperimentSchema>(json, JsonSettings);
+                                if (schema == null) continue;
+
+                                summaries.Add(new ModalExperimentSchemaSummary
+                                {
+                                    ID = idStr,
+                                    Name = schema.Name,
+                                    Description = schema.Description,
+                                    MachineConfig = schema.MachineConfig
+                                });
+                            }
+                            catch (JsonException)
+                            {
+                                Console.WriteLine($"[Database] Skipping invalid JSON for ID: {idStr}");
+                                continue;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return JsonConvert.SerializeObject(summaries, JsonSettings);
+        }
+
+        
+        public async Task<List<ModalExperimentSchemaSummary>> ListModalExperimentSchemaSummariesAsync()
+        {
+            var summaries = new List<ModalExperimentSchemaSummary>();
+            Console.WriteLine("[Database] Fetching modal experiment schema summaries from database...");
+            using (var conn = GetConnection())
+            {
+                await conn.OpenAsync();
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT Id, Json FROM ModalExperimentSchemas;";
+                    using (var reader = await cmd.ExecuteReaderAsync())
+                    {
+                        while (await reader.ReadAsync())
+                        {
+                            var idStr = await reader.IsDBNullAsync(0) ? null : reader.GetString(0);
+                            var json = await reader.IsDBNullAsync(1) ? null : reader.GetString(1);
+
+                            if (string.IsNullOrWhiteSpace(idStr) || string.IsNullOrWhiteSpace(json))
+                            {
+                                Console.WriteLine($"[Database] Skipping entry with missing ID or JSON: ID='{idStr}'");
+                                continue;
+                            }
+                            try
+                            {
+                                var schema = JsonConvert.DeserializeObject<ModalExperimentSchema>(json, JsonSettings);
+                                if (schema == null) continue;
+
+                                summaries.Add(new ModalExperimentSchemaSummary
+                                {
+                                    ID = idStr,
+                                    Name = schema.Name,
+                                    Description = schema.Description,
+                                    MachineConfig = schema.MachineConfig
+                                });
+                            }
+                            catch (JsonException)
+                            {
+                                Console.WriteLine($"[Database] Skipping invalid JSON for ID: {idStr}");
+                                continue;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return summaries;
+        }
         private async Task SaveCurrentExperiment()
         {
             _context.Add(_currentExperiment);
@@ -102,105 +211,132 @@ namespace CncMeasurement.Data
             throw new NotImplementedException();
         }
 
-        public void AddMeasurementEntry(MeasurementMetadata measuredData)
-        {
-            using (var connection = new SqliteConnection(_connectionString))
-            {
-                connection.Open();
-                var command = connection.CreateCommand();
 
-                // 1. Get all public properties of the Measurement class
-                var properties = typeof(MeasurementMetadata).GetProperties();
+       
 
-                var columnNames = new List<string>();
-                var parameterNames = new List<string>();
-
-                // 2. Loop through properties to build the dynamic query and parameters
-                foreach (var prop in properties)
-                {
-                    string propName = prop.Name;
-
-                    string paramName = "$" + propName;
-                    columnNames.Add(propName);
-                    parameterNames.Add(paramName);
-
-                    // Extract the actual value from the object
-                    object rawValue = prop.GetValue(measuredData);
-                    object dbValue;
-
-                    // 3. Handle special cases based on property type
-                    if (prop.PropertyType == typeof(GraphMetadata[]))
-                    {
-                        // Serialize the graph array to JSON using Newtonsoft
-                        dbValue = rawValue != null
-                            ? JsonConvert.SerializeObject((GraphMetadata[])rawValue)
-                            : "[]"; // Default to empty JSON array if null
-                    }
-                    else if (prop.PropertyType == typeof(DateTime))
-                    {
-                        // Force DateTime to strict ISO 8601 string format
-                        dbValue = ((DateTime)rawValue).ToString("o");
-                    }
-                    else
-                    {
-                        // For primitives (strings, ints, doubles), take the value as-is
-                        dbValue = rawValue;
-                    }
-
-                    // 4. Add the parameter to the command, converting C# null to DBNull
-                    command.Parameters.AddWithValue(paramName, dbValue ?? DBNull.Value);
-                }
-
-                // 5. Construct the final SQL INSERT string
-                string columnsSql = string.Join(", ", columnNames);
-                string paramsSql = string.Join(", ", parameterNames);
-
-                command.CommandText = $"INSERT INTO Measurements ({columnsSql}) VALUES ({paramsSql})";
-
-                // Execute!
-                command.ExecuteNonQuery();
-            }
-        }
-
-        public List<BriefMeasurementInfo> GetMeasurementSummaries()
-        {
-            var summaries = new List<BriefMeasurementInfo>();
-
-            using (var connection = new SqliteConnection(_connectionString))
-            {
-                connection.Open();
-                var command = connection.CreateCommand();
-
-                // SELECT only the 3 columns that match your BriefMeasurementInfo class
-                command.CommandText = "SELECT Id, Timestamp, Description FROM Measurements";
-
-                using (var reader = command.ExecuteReader())
-                {
-                    while (reader.Read())
-                    {
-                        var summary = new BriefMeasurementInfo
-                        {
-                            // Map the data directly to your new DTO class
-                            ID = reader.GetInt32(0),
-
-                            // Parse the Timestamp
-                            Timestamp = DateTime.Parse(reader.GetString(1)),
-
-                            // Safely handle the Description, which might be NULL
-                            Description = reader.IsDBNull(2) ? null : reader.GetString(2)
-                        };
-
-                        summaries.Add(summary);
-                    }
-                }
-            }
-
-            return summaries;
-        }
-
-        public MeasurementMetadata GetMeasurementByID(int measurementID)
+        public MeasurementMetadata GetMeasurementByID(string ID)
         {
             return null;
+        }
+
+        static string DbPath => Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Measurements.db");
+
+        static SqliteConnection GetConnection()
+        {
+            var cs = $"Data Source={DbPath}";
+            var conn = new SqliteConnection(cs);
+            return conn;
+        }
+
+        public DatabaseController()
+        {
+            EnsureDatabase();
+        }
+
+        void EnsureDatabase()
+        {
+            var dir = Path.GetDirectoryName(DbPath);
+            if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir))
+            {
+
+                Directory.CreateDirectory(dir);
+            }
+
+            // Opening a SqliteConnection will create the database file if it does not exist.
+            using (var conn = GetConnection())
+            {
+                Console.WriteLine($"[Database] Ensuring database exists at: {DbPath}");
+                conn.Open();
+                using (var tran = conn.BeginTransaction())
+                using (var cmd = conn.CreateCommand())
+                {
+                    // Ensure Experiments table exists. This stores serialized experiment setups or metadata.
+                    cmd.CommandText = @"CREATE TABLE IF NOT EXISTS Experiments (
+                                            Id TEXT PRIMARY KEY,
+                                            Json TEXT NOT NULL,
+                                            CreatedAt TEXT NOT NULL
+                                        );";
+                    cmd.ExecuteNonQuery();
+
+                    // Ensure modal experiment schemas table exists. Used by SaveModalExperimentSchema/GetModalExperimentSchema
+                    cmd.CommandText = @"CREATE TABLE IF NOT EXISTS ModalExperimentSchemas (
+                                            Id TEXT PRIMARY KEY,
+                                            Json TEXT NOT NULL
+                                        );";
+                    cmd.ExecuteNonQuery();
+
+                    // Commit changes
+                    tran.Commit();
+                }
+            }
+        }
+
+        public void SaveModalExperimentSchema(ModalExperimentSchema schema)
+        {
+            Console.WriteLine($"[Database] Saving modal experiment schema to database id: {schema.ID}");
+            if (schema == null) throw new ArgumentNullException(nameof(schema));
+
+            using (var conn = GetConnection())
+            {
+                conn.Open();
+                using (var tran = conn.BeginTransaction())
+                using (var cmd = conn.CreateCommand())
+                {
+                    try
+                    {
+                        cmd.Transaction = tran;
+                        cmd.CommandText = "INSERT OR REPLACE INTO ModalExperimentSchemas (Id, Json) VALUES (@id, @json);";
+                        cmd.Parameters.AddWithValue("@id", schema.ID.ToString());
+                        var json = JsonConvert.SerializeObject(schema);
+                        cmd.Parameters.AddWithValue("@json", json);
+                        cmd.ExecuteNonQuery();
+                        tran.Commit();
+                        Console.WriteLine("[Database] Experiment saved succesfully");
+                    }
+                    catch(Exception ex)
+                    {
+                        Console.WriteLine($"[Database] Error occurred while saving modal experiment schema: {ex.Message}");
+                    }
+                }
+            }
+        }
+
+        public ModalExperimentSchema GetModalExperimentSchema(Guid id)
+        {
+            Console.WriteLine($"[Database] Retrieving modal experiment schema from database id: {id}");
+            using (var conn = GetConnection())
+            {
+                conn.Open();
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT Json FROM ModalExperimentSchemas WHERE Id = @id LIMIT 1;";
+                    cmd.Parameters.AddWithValue("@id", id.ToString());
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            var json = reader.GetString(0);
+                            var schema = JsonConvert.DeserializeObject<ModalExperimentSchema>(json);
+                            return schema;
+                        }
+                    }
+                }
+            }
+            Console.WriteLine($"[Database] No modal experiment schema found with the given ID");
+            return null;
+        }
+
+        public void ClearModalExperimentSchemas()
+        {
+            using (var conn = GetConnection())
+            {
+                conn.Open();
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "DELETE FROM ModalExperimentSchemas;";
+                    cmd.ExecuteNonQuery();
+                }
+            }
         }
     }
 }

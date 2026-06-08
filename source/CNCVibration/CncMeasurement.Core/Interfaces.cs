@@ -19,33 +19,29 @@ namespace CncMeasurement.Core.Interfaces
     }
     public interface IEngine
     {
-        void LoadExperiment(ExperimentSetup Setup);
-        Task RunExperiment(ChannelReader<SampleChunk> Reader, CancellationToken ct);
-
+        string ModalStatus();
+        Task LoadExperiment(ExperimentSetup Setup);
+        Task LoadExperiment(ModalAnalysisExperimentSetup Setup);
+        Task RunModalExperiment(CancellationToken ct); 
     }
     public interface IDatabaseController
     {
         void InitializeContext();
         Task StartLogLiveExperiment(ExperimentSetup setup, ChannelReader<RmsFrame> RMSreader, ChannelReader<FftFrame> FFTreader);
         Task StopLog();
-        DBinfo listCollections();
-        
-      
-        void ClearDatabase();
-        MeasurementMetadata GetMeasurementByID(int measurementID);
+        void SaveModalExperimentSchema(ModalExperimentSchema schema);
 
-        List<BriefMeasurementInfo> GetMeasurementSummaries();
-        ValueTask QueueForSavingAsync(SampleChunk data, CancellationToken ct);
-        ValueTask QueueForSavingSweepAsync(SampleChunk data, CancellationToken ct);
-
+        ModalExperimentSchema GetModalExperimentSchema(Guid id);
+        void ClearModalExperimentSchemas();
+        Task<List<ModalExperimentSchemaSummary>> ListModalExperimentSchemaSummariesAsync();
     }
     public interface IMachineController
     {
         Task SetYPosition(double yPosition);
         Task RunSweep();
-        void RunContinous(int RPM);
+        void RunContinous(int RPM, float DurationSeconds);
 
-        Task Stop();
+        //Task Stop();
 
     }
     public interface IDataAcquisitionService: IAsyncDisposable

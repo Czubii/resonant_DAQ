@@ -3,8 +3,8 @@ using System.Text.Json.Serialization;
 
 namespace CncMeasurement.Core.models
 {
-    
-    
+
+
     // general information about the database collections
     public class DBinfo
     {
@@ -68,30 +68,30 @@ namespace CncMeasurement.Core.models
         public AcquisitionConfig MeasurementConfig { get; set; }
         public int DurationMS { get; set; }
     }
-        public class ChannelConfig
-        {
-            public string PhysicalChannelName { get; set; } //= "cDAQ1Mod1/ai0";
-            public string NameToAssignToChannel { get; set; } // for example "Sensor Frame" or something idk
-            public float Sensitivity { get; set; }
-            public float MinRange { get; set; }
-            public float MaxRange { get; set; }
-        }
-        public class AcquisitionConfig
-        {
-            public string GroupName;
-            public string OutputTDMSPath;
-            public List<ChannelConfig> ChannelConfigs { get; set; }
-            public float SampleRate { get; set; } //= 10240.0;
-            public int ChunkSize { get; set; } // optimal value will depend on sample rate. For 10kS/s 4096 should be an okay starting value
-        }
-        public class TriggerConfig
-        {
-            public double SampleRate { get; set; }
-            public List<ChannelConfig> ChannelConfigs { get; set; }
-            public int PreTriggerWindowMs { get; set; }
-            public int PostTriggerWindowMs { get; set; }
+    public class ChannelConfig
+    {
+        public string PhysicalChannelName { get; set; } //= "cDAQ1Mod1/ai0";
+        public string NameToAssignToChannel { get; set; } // for example "Sensor Frame" or something idk
+        public float Sensitivity { get; set; }
+        public float MinRange { get; set; }
+        public float MaxRange { get; set; }
+    }
+    public class AcquisitionConfig
+    {
+        public string GroupName;
+        public string OutputTDMSPath;
+        public List<ChannelConfig> ChannelConfigs { get; set; }
+        public float SampleRate { get; set; } //= 10240.0;
+        public int ChunkSize { get; set; } // optimal value will depend on sample rate. For 10kS/s 4096 should be an okay starting value
+    }
+    public class TriggerConfig
+    {
+        public double SampleRate { get; set; }
+        public List<ChannelConfig> ChannelConfigs { get; set; }
+        public int PreTriggerWindowMs { get; set; }
+        public int PostTriggerWindowMs { get; set; }
 
-            public double Threshold { get; set; }
+        public double Threshold { get; set; }
     }
     public class ModalAnalysisConfig
     {
@@ -102,13 +102,13 @@ namespace CncMeasurement.Core.models
         public int UseNDominantModes { get; set; }
     }
     public sealed record BroacastFrame
-        {
-            List<SampleChunk> samples;
-            List<RmsFrame> RmsFrames;
-            List<FftFrame> FftFrames;
+    {
+        List<SampleChunk> samples;
+        List<RmsFrame> RmsFrames;
+        List<FftFrame> FftFrames;
 
-        }
-        public sealed record SampleChunk // Used for sample transport between daq an windowing/trigger layers
+    }
+    public sealed record SampleChunk // Used for sample transport between daq an windowing/trigger layers
         (
             long SampleIndex,
             int NumChannels,
@@ -162,18 +162,18 @@ namespace CncMeasurement.Core.models
         // - Not a density: values are not "per Hz" and depend on window/scaling choices.
 
         double[] PSDMagnitudes
-        // Computation:
-        // - Uses the same FFT X[k] as above.
-        // - Window power normalization uses sum(w^2).
-        // - PSD is computed as:
-        //      PSD[k] = (|X[k]|^2 / (SampleRate * sum(w^2))) * S(k)
-        //   with the same single-sided correction S(k) as for Magnitudes
-        //   (DC and Nyquist are not doubled; interior bins are doubled).
-        //
-        // Interpretation:
-        // - Units are (input units)^2/Hz.
-        // - PSD is the preferred quantity for comparing spectral levels across different
-        //   record lengths / FFT sizes and for averaging across repeated impacts or time windows.
+    // Computation:
+    // - Uses the same FFT X[k] as above.
+    // - Window power normalization uses sum(w^2).
+    // - PSD is computed as:
+    //      PSD[k] = (|X[k]|^2 / (SampleRate * sum(w^2))) * S(k)
+    //   with the same single-sided correction S(k) as for Magnitudes
+    //   (DC and Nyquist are not doubled; interior bins are doubled).
+    //
+    // Interpretation:
+    // - Units are (input units)^2/Hz.
+    // - PSD is the preferred quantity for comparing spectral levels across different
+    //   record lengths / FFT sizes and for averaging across repeated impacts or time windows.
     );
     public sealed record RmsFrame
     (
@@ -215,10 +215,60 @@ namespace CncMeasurement.Core.models
     (
         ModalResults NumericalResults,
         FftFrame SignalFFT,
-        SignalFrame SignalRaw
+        SignalFrame SignalRaw,
+        string ExcelReportPath
     );
+    public class ExperimentSchema : ExperimentSetup
+    {
+        public List<DateTime> PeakStamps { get; set; }
+        public List<string> FFTpaths { get; set; }
+        public List<string> RMSpaths { get; set; }
+    }
+
+    public class ModalExperimentSchema : ModalAnalysisExperimentSetup
+    {
+        public ModalAnalysisReport Report { get; set; }
+
+        public void FromSetup(ModalAnalysisExperimentSetup setup , ModalAnalysisReport report)
+        {
+            ID = setup.ID;
+            Name = setup.Name;
+            Description = setup.Description;
+            MachineConfig = setup.MachineConfig;
+            MeasurementConfig = setup.MeasurementConfig;
+            TriggerConfig = setup.TriggerConfig;
+            AnalysisConfig = setup.AnalysisConfig;
+            Report = report;
+        }
+    }
+
+    // Lightweight summary used by the database listing API
+    public class ModalExperimentSchemaSummary
+    {
+        public string ID { get; set; }
+        public string Name { get; set; }
+        public string Description { get; set; }
+        public MachineConfig MachineConfig { get; set; }
+    }
+
+    public class ModalAnalysisExperimentSetup 
+    {
+        public Guid ID { get; protected set; }
+        public string Name { get; set; }
+        public string Description { get; set; }
+        public MachineConfig MachineConfig { get; set; }
+        public AcquisitionConfig MeasurementConfig { get; set; }
+        public TriggerConfig TriggerConfig { get; set; }
+        public ModalAnalysisConfig AnalysisConfig { get; set; }
+
+        public ModalAnalysisExperimentSetup()
+        {
+            ID = Guid.NewGuid();
+        }
+    }
 
 }
+
 
 
 
