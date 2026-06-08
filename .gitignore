@@ -62,3 +62,5 @@ pnpm-debug.log*
 
 .vscode/
 /source/CNCVibration/CncMeasurement.Runtime/index.html
+/source/CNCVibration/CncMeasurement.Web/Reports/
+
