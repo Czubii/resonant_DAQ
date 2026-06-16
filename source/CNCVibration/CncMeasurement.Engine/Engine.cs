@@ -122,23 +122,8 @@ namespace CncMeasurement.Engine
 
         async Task InternalExperiment(CancellationToken ct)
         {
-            var triggerConfig = new TriggerConfig
-            {
-                SampleRate = _modalSetup.MeasurementConfig.SampleRate,
-                ChannelConfigs = _modalSetup.MeasurementConfig.ChannelConfigs,
-                PreTriggerWindowMs = 250,
-                PostTriggerWindowMs = 250,
-                Threshold = 1.0
-            };
-            var analysisConfig = new ModalAnalysisConfig
-            {
-                ModeProminenceThresholddB = 2,
-                DampingFilterBandwidthPercent = 0.1,
-                DampingStartPeakPercent = 0.95f,
-                DampingEndPeakPercent = 0.15f,
-                UseNDominantModes = 8
-            };
-            var report = await _analyzer.RunAsync(_modalSetup.MeasurementConfig, triggerConfig, analysisConfig, ct);
+          
+            var report = await _analyzer.RunAsync(_modalSetup.MeasurementConfig, _modalSetup.TriggerConfig,_modalSetup.AnalysisConfig, ct);
             Console.WriteLine("[Engine] Recieved analysis from processor");
 
             ModalExperimentSchema schema = new();
