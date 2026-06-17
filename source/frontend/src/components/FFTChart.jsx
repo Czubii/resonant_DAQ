@@ -6,32 +6,37 @@ export default function FFTChart() {
 
   useEffect(() => {
     const el = ref.current;
-
     if (!el) return;
 
-    const data = [
+    Plotly.newPlot(
+      el,
+      [
+        {
+          x: [0, 10, 20, 30, 40, 50],
+          y: [0, 0.2, 0.6, 0.3, 0.8, 0.4],
+          type: "scatter",
+          mode: "lines",
+          line: { color: "#00d4ff" },
+        },
+      ],
       {
-        x: [0, 1, 2, 3, 4],
-        y: [0, 1, 4, 9, 16],
-        type: "scatter",
-        mode: "lines+markers",
+        title: "FFT Spectrum",
+
+        paper_bgcolor: "#1b1b1b",
+        plot_bgcolor: "#1b1b1b",
+
+        font: { color: "#fff" },
+
+
+        margin: { t: 40, l: 40, r: 20, b: 40 },
+
+        showlegend: false,
       },
-    ];
-
-    const layout = {
-      title: "FFT Chart",
-      paper_bgcolor: "#111",
-      plot_bgcolor: "#111",
-      font: { color: "#fff" },
-      margin: { t: 40, l: 40, r: 20, b: 40 },
-    };
-
-    Plotly.newPlot(el, data, layout, { responsive: true });
+      { responsive: true }
+    );
 
     return () => {
-      if (ref.current) {
-        Plotly.purge(ref.current);
-      }
+      if (ref.current) Plotly.purge(ref.current);
     };
   }, []);
 
