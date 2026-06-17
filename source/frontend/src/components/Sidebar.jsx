@@ -10,40 +10,22 @@ export default function Sidebar({ onSelect }) {
       {/* NEW EXPERIMENT */}
       <div
         style={styles.item}
-        onMouseEnter={() => setHover("new")}
+        onClick={() => onSelect("new-config")}
       >
         New Experiment
       </div>
 
-      {hover === "new" && (
-        <div style={styles.flyout}>
-          <div
-            style={styles.subItem}
-            onClick={() => onSelect("new-config")}
-          >
-            Modal response
-          </div>
-        </div>
-      )}
+    
 
       {/* LOAD EXPERIMENT */}
       <div
         style={styles.item}
-        onMouseEnter={() => setHover("load")}
+        onClick={() => onSelect("load")}
       >
         Load Experiment
       </div>
 
-      {hover === "load" && (
-        <div style={styles.flyout}>
-          <div
-            style={styles.subItem}
-            onClick={() => onSelect("load")}
-          >
-            Load experiment
-          </div>
-        </div>
-      )}
+      
     </div>
   );
 }
@@ -69,7 +51,6 @@ const styles = {
   },
 
   flyout: {
-    marginLeft: "10px",
     marginTop: "5px",
     padding: "8px",
     backgroundColor: "#1b1b1b",

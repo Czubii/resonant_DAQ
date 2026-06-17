@@ -1,177 +1,363 @@
-import { useState } from "react";
-
+import { useEffect, useState, useMemo } from "react";
 import Sidebar from "./components/Sidebar";
-import FFTChart from "./components/FFTChart";
-import RPMChart from "./components/RPMChart";
+import Chart from "./components/Chart";
+import ExperimentControlPanel from "./components/ExperimentControlPanel";
+import ChannelControlPanel from "./components/ChannelControlPanel";
+
+const defaultConfig = {
+  Name: "New Experiment",
+  Description: "",
+
+  MachineConfig: {
+    Y: 25,
+  },
+
+  MeasurementConfig: {
+    SampleRate: 7500,
+    ChunkSize: 4096,
+    GroupName: "test",
+    OutputTDMSPath: "testoutput.tdms",
+  },
+
+  TriggerConfig: {
+    SampleRate: 7500,
+    PreTriggerWindowMs: 250,
+    PostTriggerWindowMs: 250,
+    Threshold: 1.0,
+  },
+
+  AnalysisConfig: {
+    ModeProminenceThresholddB: 2,
+    DampingFilterBandwidthPercent: 0.1,
+    DampingStartPeakPercent: 0.95,
+    DampingEndPeakPercent: 0.15,
+    UseNDominantModes: 8,
+  },
+
+  // UI-only (not sent to backend config root)
+  channels: [],
+};
 
 export default function App() {
   const [menu, setMenu] = useState("idle");
   const [tab, setTab] = useState("fft");
+  const [devices, setDevices] = useState([]);
+  const [experiments, setExperiments] = useState([]);
+  const [experimentId, setExperimentId] = useState(null);
+  const [runStatus, setRunStatus] = useState("");
+  const [selectedExperiment, setSelectedExperiment] = useState(null);
+  const [saveStatus, setSaveStatus] = useState("");
+  const [config, setConfig] = useState(defaultConfig);
 
-  const [config, setConfig] = useState({
-    experimentName: "",
-    sampleRate: 10000,
-    chunkSize: 4096,
-    channels: [
-      {
-        physicalChannelName: "",
-        channelName: "",
-      },
-    ],
+  useEffect(() => {
+    fetch("http://localhost:5078/GetDevices")
+      .then((r) => r.json())
+      .then(setDevices)
+      .catch(console.error);
+  }, []);
+
+  const backendChannels = useMemo(() => {
+  return devices?.flatMap(d => d.aiChannels ?? []) ?? [];
+}, [devices]);
+
+    useEffect(() => {
+  if (!backendChannels.length) return;
+
+  setConfig(prev => ({
+    ...prev,
+    channels: backendChannels.map(name => {
+      const existing = prev.channels.find(
+        c => c.physicalChannelName === name
+      );
+
+      return (
+        existing || {
+          physicalChannelName: name,
+          enabled: false,
+          channelName: "",
+          minRange: -50,
+          maxRange: 50,
+          sensitivity: 100,
+        }
+      );
+    }),
+  }));
+}, [backendChannels]);
+
+ 
+  function openNewExperiment() {
+  setConfig({
+    ...defaultConfig,
+    channels: backendChannels.map(name => ({
+      physicalChannelName: name,
+      enabled: false,
+      channelName: "",
+      minRange: -50,
+      maxRange: 50,
+      sensitivity: 100,
+    })),
   });
 
-  const backendChannels = [
-    "cDAQMod1/ai0",
-    "cDAQMod1/ai1",
-    "cDAQMod2/ai0",
-  ];
+  setSelectedExperiment(null);
+  setExperimentId(null);
+  setRunStatus("");
+  setSaveStatus("");
+  setMenu("new-config");
+}
 
-  function startMeasurement() {
-    console.log("START MEASUREMENT", config);
-    alert("Measurement started (mock)");
+  async function loadExperiments() {
+    try {
+      const res = await fetch("http://localhost:5078/GetAllExperiments/");
+      const data = await res.json();
+      setExperiments(data);
+    } catch (err) {
+      console.error(err);
+    }
   }
 
-  function saveExperiment() {
-    console.log("SAVE EXPERIMENT", config);
-    alert("Experiment saved (mock)");
+
+  async function startExperiment() {
+  try {
+    setRunStatus("Experiment is starting...");
+
+    const channelConfigs = config.channels
+      .filter((ch) => ch.enabled)
+      .map((ch) => ({
+        PhysicalChannelName: ch.physicalChannelName,
+        NameToAssignToChannel: ch.channelName,
+        MinRange: Number(ch.minRange),
+        MaxRange: Number(ch.maxRange),
+        Sensitivity: Number(ch.sensitivity),
+      }));
+
+    const payload = {
+      Name: config.Name,
+      Description: config.Description,
+
+      MachineConfig: {
+        Y: config.MachineConfig.Y,
+      },
+
+      MeasurementConfig: {
+        SampleRate: config.MeasurementConfig.SampleRate,
+        ChunkSize: config.MeasurementConfig.ChunkSize,
+        GroupName: config.MeasurementConfig.GroupName,
+        OutputTDMSPath: config.MeasurementConfig.OutputTDMSPath,
+        ChannelConfigs: channelConfigs,
+      },
+
+      TriggerConfig: {
+        SampleRate: config.TriggerConfig.SampleRate,
+        ChannelConfigs: channelConfigs,
+        PreTriggerWindowMs: config.TriggerConfig.PreTriggerWindowMs,
+        PostTriggerWindowMs: config.TriggerConfig.PostTriggerWindowMs,
+        Threshold: config.TriggerConfig.Threshold,
+      },
+
+      AnalysisConfig: {
+        ModeProminenceThresholddB:
+          config.AnalysisConfig.ModeProminenceThresholddB,
+
+        DampingFilterBandwidthPercent:
+          config.AnalysisConfig.DampingFilterBandwidthPercent,
+
+        DampingStartPeakPercent:
+          config.AnalysisConfig.DampingStartPeakPercent,
+
+        DampingEndPeakPercent:
+          config.AnalysisConfig.DampingEndPeakPercent,
+
+        UseNDominantModes:
+          config.AnalysisConfig.UseNDominantModes,
+      },
+    };
+
+    const res = await fetch(
+      "http://localhost:5078/UploadModalExperiment",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(
+        `HTTP error ${res.status}: ${JSON.stringify(data)}`
+      );
+    }
+
+    const id = data.id;
+
+    setExperimentId(id);
+    setRunStatus("Experiment is running");
+
+    if (id) pollStatus(id);
+  } catch (err) {
+    console.error(err);
+    setRunStatus("Failed to start experiment");
   }
+}
+
+  function pollStatus(id) {
+    let attempts = 0;
+
+    const interval = setInterval(async () => {
+      attempts++;
+
+      try {
+        const res = await fetch(
+          `http://localhost:5078/CheckExperimentStatus/`
+        );
+
+        const text = await res.text();
+        setRunStatus(text);
+
+        const t = text.toLowerCase();
+
+        if (
+          t.includes("completed") ||
+          t.includes("done") ||
+          t.includes("finish")
+        ) {
+          clearInterval(interval);
+
+          setRunStatus("Experiment completed");
+          loadExperiment(id);
+        }
+      } catch (err) {
+        clearInterval(interval);
+        setRunStatus("Error checking status");
+      }
+
+      if (attempts > 60) {
+        clearInterval(interval);
+        setRunStatus("Timeout");
+      }
+    }, 2000);
+  }
+
+async function loadExperiment(id) {
+  try {
+    const res = await fetch(
+      `http://localhost:5078/GetExperiment/${id}`
+    );
+    const data = await res.json();
+
+    setSelectedExperiment(data);
+
+
+
+  } catch (err) {
+    console.error(err);
+  }
+}
 
   return (
     <div style={styles.app}>
       <Sidebar onSelect={setMenu} />
 
       <div style={styles.main}>
-
-        {/* ===== CHART ===== */}
+        {/* CHART */}
         <div style={styles.chartCard}>
-
           <div style={styles.tabs}>
             <button
               onClick={() => setTab("fft")}
-              style={tab === "fft" ? styles.tabActive : styles.tab}
+              style={tab === "fft" ? styles.buttonActive : styles.button}
             >
-              FFT Spectrum
+              FFT
             </button>
-
             <button
-              onClick={() => setTab("rpm")}
-              style={tab === "rpm" ? styles.tabActive : styles.tab}
+              onClick={() => setTab("time")}
+              style={tab === "time" ? styles.buttonActive : styles.button}
             >
-              RPM Amplitude
+              Time
+            </button>
+            <button
+              onClick={() => setTab("psd")}
+              style={tab === "psd" ? styles.buttonActive : styles.button}
+            >
+              PSD
             </button>
           </div>
 
-          <h3 style={styles.title}>
-            {tab === "fft"
-              ? "FFT Spectrum Analysis"
-              : "RPM Amplitude Analysis"}
-          </h3>
-
           <div style={styles.chartBox}>
-            {tab === "fft" ? <FFTChart /> : <RPMChart />}
+            {selectedExperiment?.report ? (
+              <Chart type={tab} report={selectedExperiment.report} />
+            ) : (
+              <p style={{ textAlign: "center", paddingTop: "150px" }}>
+                Choose an experiment
+              </p>
+            )}
           </div>
         </div>
 
-        {/* ===== CONFIG ===== */}
-        <div style={styles.grid}>
+        {/* NEW CONFIG */}
+        {menu === "new-config" && (
+          <>
+            {saveStatus && (
+              <div style={styles.status}>{saveStatus}</div>
+            )}
 
-          {/* EXPERIMENT */}
-          {menu === "new-config" && (
-            <div style={styles.card}>
-              <h3>Experiment Config</h3>
+            {runStatus && (
+              <div style={styles.status}>{runStatus}</div>
+            )}
 
-              <label>Experiment Name</label>
-              <input style={styles.input} />
+            <div style={{ display: "flex", gap: 20 }}>
+              <div style={{ flex: 1 }}>
+                <ExperimentControlPanel
+                  config={config}
+                  setConfig={setConfig}
+                  onStart={startExperiment}
+                />
+              </div>
 
-               <label>Sample Rate (10 000 - 50 000 Hz)</label>
-    <input
-      type="number"
-      min={10000}
-      max={50000}
-      step={1000}
-      style={styles.input}
-      placeholder="e.g. 10240"
-    />
-
-              <label>Chunk Size</label>
-              <select style={styles.input}>
-                {[256, 512, 1024, 2048, 4096].map((v) => (
-                  <option key={v}>{v}</option>
-                ))}
-              </select>
-
-              {/* BUTTONS RESTORED */}
-              <div style={styles.buttonRow}>
-                <button style={styles.startBtn} onClick={startMeasurement}>
-                  Start Measurement
-                </button>
-
-                <button style={styles.saveBtn} onClick={saveExperiment}>
-                  Save Experiment
-                </button>
+              <div style={{ flex: 1 }}>
+                <ChannelControlPanel
+                  channels={config.channels}
+                  setChannels={(ch) =>
+                    setConfig({ ...config, channels: ch })
+                  }
+                
+                />
               </div>
             </div>
-          )}
+          </>
+        )}
 
-          {/* CHANNELS */}
-          {menu === "new-config" && (
-            <div style={styles.card}>
-              <h3>Channel Configurations</h3>
+        {/* LOAD */}
+        {menu === "load" && (
+          <div style={styles.card}>
+            <h3>Saved Experiments</h3>
 
-              {config.channels.map((ch, i) => (
-                <div key={i} style={styles.channelCard}>
+            <button style={styles.actionBtn} onClick={loadExperiments}>
+              Refresh List
+            </button>
 
-                  <label>Physical Channel Name</label>
-                  <select
-                    style={styles.input}
-                    value={ch.physicalChannelName}
-                    onChange={(e) => {
-                      const updated = [...config.channels];
-                      updated[i].physicalChannelName = e.target.value;
-                      setConfig({ ...config, channels: updated });
-                    }}
+            <div style={{ marginTop: 15 }}>
+              {experiments.map((exp) => (
+                <div key={exp.id} style={styles.expCard}>
+                  <div>
+                    <b>{exp.name}</b>
+                    <div style={styles.small}>ID: {exp.id}</div>
+                  </div>
+
+                  <button
+                    style={styles.actionBtn}
+                    onClick={() => loadExperiment(exp.id)}
                   >
-                    <option value="">Select channel</option>
-                    {backendChannels.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-
-                  <label>Channel Name</label>
-                  <input
-                    style={styles.input}
-                    value={ch.channelName}
-                    onChange={(e) => {
-                      const updated = [...config.channels];
-                      updated[i].channelName = e.target.value;
-                      setConfig({ ...config, channels: updated });
-                    }}
-                  />
+                    Load
+                  </button>
                 </div>
               ))}
             </div>
-          )}
-
-          {/* LOAD */}
-          {menu === "load" && (
-            <div style={styles.card}>
-              <h3>Load Experiment</h3>
-              <p style={{ color: "#ffcc00" }}>
-                Work in progress...
-              </p>
-            </div>
-          )}
-
-          {/* IDLE */}
-          {menu === "idle" && (
-            <div style={styles.card}>
-              Select New or Load Experiment
-            </div>
-          )}
-
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -180,111 +366,67 @@ export default function App() {
 const styles = {
   app: {
     display: "flex",
-    backgroundColor: "#111",
-    minHeight: "100vh",
+    background: "#111",
     color: "white",
-    fontFamily: "Arial",
+    minHeight: "100vh",
   },
-
-  main: {
-    marginLeft: "220px",
-    width: "100%",
-    padding: "10px",
-  },
-
+  main: { marginLeft: 220, width: "100%", padding: 10 },
   chartCard: {
-    backgroundColor: "#1b1b1b",
-    padding: "10px",
-    borderRadius: "10px",
+    background: "#1b1b1b",
+    padding: 10,
+    borderRadius: 10,
+    marginBottom: 10,
   },
+  chartBox: { background: "#000", minHeight: 350 },
+  tabs: { display: "flex", gap: 10, marginBottom: 10 },
 
-  tabs: {
-    display: "flex",
-    gap: "10px",
-  },
-
-  tab: {
-    padding: "8px 14px",
-    backgroundColor: "#222",
+  button: {
+    padding: "8px 16px",
+    background: "#222",
     color: "#aaa",
     border: "1px solid #333",
-    borderRadius: "6px",
-    cursor: "pointer",
+    borderRadius: 6,
   },
-
-  tabActive: {
-    padding: "8px 14px",
-    backgroundColor: "#00d4ff",
+  buttonActive: {
+    padding: "8px 16px",
+    background: "#00d4ff",
     color: "#000",
     border: "1px solid #00d4ff",
-    borderRadius: "6px",
+    borderRadius: 6,
     fontWeight: "bold",
-    cursor: "pointer",
-  },
-
-  title: {
-    margin: "10px 0",
-  },
-
-  chartBox: {
-    backgroundColor: "#111",
-    borderRadius: "10px",
-    padding: "10px",
-  },
-
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "10px",
-    marginTop: "10px",
   },
 
   card: {
-    backgroundColor: "#1b1b1b",
-    padding: "10px",
-    borderRadius: "10px",
+    background: "#1b1b1b",
+    padding: 10,
+    borderRadius: 10,
   },
 
-  channelCard: {
-    border: "1px solid #333",
-    padding: "8px",
-    marginTop: "8px",
-  },
-
-  input: {
-    width: "100%",
-    padding: "6px",
-    marginTop: "6px",
-    marginBottom: "6px",
-    backgroundColor: "#222",
-    color: "white",
-    border: "1px solid #444",
-  },
-
-  buttonRow: {
+  expCard: {
+    padding: 10,
+    background: "#222",
+    marginBottom: 5,
     display: "flex",
-    gap: "10px",
-    marginTop: "10px",
+    justifyContent: "space-between",
   },
 
-  startBtn: {
-    flex: 1,
-    padding: "10px",
-    backgroundColor: "#00d4ff",
-    border: "none",
+  actionBtn: {
+    padding: "8px 16px",
+    background: "#00d4ff",
     color: "#000",
+    border: "none",
+    borderRadius: 6,
     fontWeight: "bold",
-    borderRadius: "6px",
-    cursor: "pointer",
   },
 
-  saveBtn: {
-    flex: 1,
-    padding: "10px",
-    backgroundColor: "#2a2a2a",
-    border: "1px solid #444",
-    color: "white",
-    borderRadius: "6px",
-    cursor: "pointer",
+  status: {
+    margin: "10px 0",
+    color: "#00d4ff",
+    fontWeight: "bold",
+  },
+
+  small: {
+    fontSize: "0.85em",
+    color: "#888",
   },
 };
